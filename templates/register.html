@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="form-panel">
+  <h1>Create your Ardhi Plus account</h1>
+  <p>Register as a land owner, broker, or agent to list houses, homes, and verified property deals.</p>
+  <form id="register-form" class="panel-form">
+    <label>Full name<input name="name" required placeholder="Your name" /></label>
+    <label>Email<input name="email" type="email" required placeholder="you@example.com" /></label>
+    <label>Role<select name="role" required>
+      <option value="">Select your role</option>
+      <option value="land_owner">Land owner</option>
+      <option value="broker">Broker</option>
+      <option value="agent">Agent</option>
+    </select></label>
+    <label>Password
+      <div class="password-field">
+        <input name="password" type="password" required placeholder="••••••••" />
+        <button type="button" class="password-toggle">Show</button>
+      </div>
+    </label>
+    <p class="password-rules">Use at least 8 characters, including one uppercase letter, one lowercase letter, one number, and one special character. Password cannot be numbers only.</p>
+    <button class="button button-primary">Register</button>
+  </form>
+  <div id="register-message" class="form-message"></div>
+  <p class="form-footer">Already have an account? <a href="/login">Log in</a></p>
+</section>
+{% endblock %}

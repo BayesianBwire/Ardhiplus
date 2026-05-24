@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="section-heading">
+  <h1>Survey Request Services</h1>
+  <p>Submit a land verification request and get matched with certified survey professionals.</p>
+</section>
+
+<div class="feature-grid">
+  <article class="feature-card">
+    <h2>Property verification</h2>
+    <p>Confirm title, plot boundaries, and ownership before you buy or sell land.</p>
+  </article>
+  <article class="feature-card">
+    <h2>Boundary mapping</h2>
+    <p>Receive precise geo-coordinates and survey reports to reduce disputes and risk.</p>
+  </article>
+  <article class="feature-card">
+    <h2>Trusted surveyors</h2>
+    <p>Connect with professional survey teams that support verified property deals.</p>
+  </article>
+</div>
+
+<section class="form-panel">
+  <h2>Request a survey</h2>
+  <form id="survey-form" class="panel-form">
+    <label>Property title<input name="property_title" required placeholder="Example: Greenfield Acreage" /></label>
+    <label>Owner name<input name="owner_name" required placeholder="Your full name" /></label>
+    <label>Email<input name="email" type="email" required placeholder="you@example.com" /></label>
+    <label>Location<input name="location" required placeholder="Naivasha, Kenya" /></label>
+    <button class="button button-primary">Submit survey request</button>
+  </form>
+  <div id="survey-message" class="form-message"></div>
+</section>
+{% endblock %}

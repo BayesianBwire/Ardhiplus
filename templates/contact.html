@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="section-heading">
+  <h1>Contact</h1>
+  <p>Need admin assistance? Submit a connection request and the administrator will link you with the right buyer or seller.</p>
+</section>
+
+<section class="contact-grid">
+  <div class="contact-card">
+    <h2>Customer support</h2>
+    <p>Email: <a href="mailto:support@ardhiplusproperties.co.ke">support@ardhiplus.co.ke</a></p>
+    <p>Phone: <a href="tel:+254746554758">+254 746 554 758</a></p>
+  </div>
+  <div class="contact-card">
+    <h2>Office location</h2>
+    <p>Nairobi, Kenya</p>
+    <p>Open Monday to Friday, 9:00 AM – 5:00 PM</p>
+  </div>
+</section>
+
+<section class="form-panel">
+  <h2>Request admin connection</h2>
+  <p>Submit your buyer or seller details and an admin will connect you while keeping private contacts protected.</p>
+  <form id="connection-form" class="panel-form">
+    <label>Property title<input name="property_title" required placeholder="Property title or reference" /></label>
+    <label>Your name<input name="buyer_name" required placeholder="Your full name" /></label>
+    <label>Email<input name="buyer_email" type="email" required placeholder="you@example.com" /></label>
+    <label>Phone<input name="buyer_phone" required placeholder="+254 746 554 758" /></label>
+    <label>Message<textarea name="message" rows="4" placeholder="Tell us how you want the admin to connect you"></textarea></label>
+    <button class="button button-primary">Send connection request</button>
+  </form>
+  <div id="contact-message" class="form-message"></div>
+</section>
+{% endblock %}

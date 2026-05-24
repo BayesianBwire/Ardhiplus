@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="section-heading">
+  <h1>Admin approval & intermediary panel</h1>
+  <p>Approve listings, verify land, handle reports, and connect buyers with sellers while protecting private contact details.</p>
+</section>
+
+<section class="admin-panel space-y-8">
+  <div class="admin-section">
+    <h2>Pending listings</h2>
+    {% if pending %}
+    <div class="pending-listings">
+      {% for listing in pending %}
+      <article class="card admin-card">
+        <div>
+          <p class="badge">{{ listing.badge }}</p>
+          <h3>{{ listing.title }}</h3>
+          <p>{{ listing.location }}</p>
+          <p class="listing-meta">{{ listing.size }} · {{ listing.price }}</p>
+          <p>{{ listing.description }}</p>
+          <div class="admin-details">
+            <p><strong>Seller:</strong> {{ listing.seller_name }}</p>
+            <p><strong>Email:</strong> {{ listing.seller_email }}</p>
+            <p><strong>Phone:</strong> {{ listing.seller_phone }}</p>
+            <p><strong>Notes:</strong> {{ listing.seller_notes }}</p>
+          </div>
+        </div>
+        <button class="button button-primary verify-button" data-id="{{ listing.id }}">Verify and approve</button>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">No pending listings at the moment.</p>
+    {% endif %}
+  </div>
+
+  <div class="admin-section">
+    <h2>Buyer connection requests</h2>
+    {% if interest_requests %}
+    <div class="pending-listings">
+      {% for request in interest_requests %}
+      <article class="card admin-card">
+        <div>
+          <h3>{{ request.listing_title }}</h3>
+          <p class="listing-meta">Status: {{ request.status }}</p>
+          <p><strong>Buyer:</strong> {{ request.buyer_name }}</p>
+          <p><strong>Email:</strong> {{ request.buyer_email }}</p>
+          <p><strong>Phone:</strong> {{ request.buyer_phone }}</p>
+          <p><strong>Message:</strong> {{ request.message }}</p>
+          <p><strong>Requested:</strong> {{ request.requested_at }}</p>
+        </div>
+        {% if request.status != "Connected" %}
+        <button class="button button-primary connect-button" data-id="{{ request.id }}">Connect parties</button>
+        {% endif %}
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">No connection requests yet.</p>
+    {% endif %}
+  </div>
+
+  <div class="admin-section">
+    <h2>Reports</h2>
+    {% if reports %}
+    <div class="pending-listings">
+      {% for report in reports %}
+      <article class="card admin-card">
+        <div>
+          <h3>{{ report.listing_title }}</h3>
+          <p class="listing-meta">Status: {{ report.status }}</p>
+          <p><strong>Reported by:</strong> {{ report.reporter_name }}</p>
+          <p><strong>Email:</strong> {{ report.reporter_email }}</p>
+          <p><strong>Issue:</strong> {{ report.issue }}</p>
+          <p><strong>Reported:</strong> {{ report.reported_at }}</p>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">No reports have been submitted.</p>
+    {% endif %}
+  </div>
+
+  <div id="admin-message" class="form-message"></div>
+</section>
+{% endblock %}

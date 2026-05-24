@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="form-panel">
+  <h1>Login to your account</h1>
+  <p>Access your dashboard, manage listings, and review survey requests.</p>
+  <form id="login-form" class="panel-form">
+    <label>Email<input name="email" type="email" required placeholder="you@example.com" /></label>
+    <label>Password
+      <div class="password-field">
+        <input name="password" type="password" required placeholder="••••••••" />
+        <button type="button" class="password-toggle">Show</button>
+      </div>
+    </label>
+    <button class="button button-primary">Login</button>
+  </form>
+  <div class="form-links">
+    <a href="/forgot-password">Forgot password?</a>
+  </div>
+  <div id="login-message" class="form-message"></div>
+  <p class="form-footer">Don’t have an account? <a href="/register">Register now</a></p>
+</section>
+{% endblock %}

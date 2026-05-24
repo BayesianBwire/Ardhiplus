@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="section-heading">
+  <h1>Marketplace</h1>
+  <p>Filter by location, size, price and type, then sort by newest, cheapest or verified listings.</p>
+</section>
+
+<section class="marketplace-controls">
+  <div class="market-filter-grid">
+    <label>
+      Location
+      <select id="filter-location">
+        <option value="all">All locations</option>
+      </select>
+    </label>
+    <label>
+      Size
+      <select id="filter-size">
+        <option value="all">All sizes</option>
+        <option value="small">Small</option>
+        <option value="medium">Medium</option>
+        <option value="large">Large</option>
+      </select>
+    </label>
+    <label>
+      Type
+      <select id="filter-type">
+        <option value="all">All types</option>
+      </select>
+    </label>
+    <label>
+      Sort by
+      <select id="sort-by">
+        <option value="newest">Newest</option>
+        <option value="cheapest">Cheapest</option>
+        <option value="verified">Verified</option>
+      </select>
+    </label>
+  </div>
+  <div class="market-toggle">
+    <button type="button" class="button button-outline active" id="view-list">List view</button>
+    <button type="button" class="button button-outline" id="view-map">Map view</button>
+  </div>
+</section>
+
+<section class="listings-grid" id="listings-grid"></section>
+<section class="map-panel hidden" id="map-panel">
+  <div class="map-card">
+    <div class="map-grid" id="map-grid"></div>
+  </div>
+</section>
+{% endblock %}

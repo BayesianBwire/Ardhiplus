@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <circle cx="60" cy="60" r="56" stroke="#2563EB" stroke-width="8" fill="#0f172a" />
+  <path d="M34 72L50 48L70 80L86 52" stroke="#38bdf8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+  <text x="50%" y="106" text-anchor="middle" font-family="Inter, sans-serif" font-size="14" fill="#cbd5e1">Ardhi Plus</text>
+</svg>
