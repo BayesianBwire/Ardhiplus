@@ -1,9 +1,19 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import re
 import secrets
 from flask import Flask, jsonify, redirect, render_template, request, url_for, session, g
 import os
+import jwt
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from cryptography.fernet import Fernet
+import hmac
+import hashlib
+from flask_socketio import SocketIO, disconnect, emit
+from passlib.hash import bcrypt as passlib_bcrypt
+from sqlalchemy.exc import SQLAlchemyError
 from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
@@ -11,6 +21,18 @@ app.config["JSON_SORT_KEYS"] = False
 app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://postgres.iyyznlbcdiqqjcugfvdg:Ardhiplus%4020@aws-1-eu-central-2.pooler.supabase.com:6543/postgres"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-secret-key-change-me")
+app.config["JWT_SECRET"] = os.environ.get("JWT_SECRET", "dev-jwt-secret-change-me")
+app.config["PERMANENT_SESSION_LIFETIME"] = int(os.environ.get("SESSION_LIFETIME_SECONDS", 3600 * 2))
+app.config["MESSAGE_KEY"] = os.environ.get("MESSAGE_KEY") or Fernet.generate_key().decode()
+
+# Rate limiter
+limiter = Limiter(app, key_func=get_remote_address, default_limits=["200 per day", "50 per hour"])
+
+# SocketIO
+socketio = SocketIO(app, cors_allowed_origins="*")
+
+# Fernet instance for message encryption
+_fernet = Fernet(app.config["MESSAGE_KEY"].encode())
 
 db = SQLAlchemy(app)
 
@@ -176,6 +198,49 @@ class LoginThrottle(db.Model):
     def to_dict(self):
         return {"email": self.email, "failed_count": self.failed_count, "suspended_until": self.suspended_until}
 
+
+class IPBlock(db.Model):
+    ip = db.Column(db.String(100), primary_key=True)
+    reason = db.Column(db.String(255), nullable=True)
+    expires = db.Column(db.Float, nullable=True)
+
+    def to_dict(self):
+        return {"ip": self.ip, "reason": self.reason, "expires": self.expires}
+
+
+class AuditLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, nullable=True)
+    action = db.Column(db.String(255), nullable=False)
+    ip = db.Column(db.String(100), nullable=True)
+    details = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class DeviceSession(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, nullable=False)
+    session_token = db.Column(db.String(255), nullable=False)
+    device_info = db.Column(db.String(512), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_active = db.Column(db.DateTime, default=datetime.utcnow)
+    revoked = db.Column(db.Boolean, default=False)
+
+
+class Message(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, nullable=False)
+    recipient_id = db.Column(db.Integer, nullable=False)
+    ciphertext = db.Column(db.LargeBinary, nullable=False)
+    hmac_sig = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class MessageThrottle(db.Model):
+    user_id = db.Column(db.Integer, primary_key=True)
+    window_start = db.Column(db.Float, nullable=True)
+    count = db.Column(db.Integer, default=0)
+
 initial_listings = [
     {
         "title": "Prime Residential Plot",
@@ -294,6 +359,13 @@ def load_current_user():
     if "csrf_token" not in session:
         session["csrf_token"] = secrets.token_urlsafe(16)
 
+    # Check IP block
+    remote = request.remote_addr
+    if remote:
+        ipb = IPBlock.query.get(remote)
+        if ipb and ipb.expires and ipb.expires > datetime.utcnow().timestamp():
+            return jsonify({"status": "error", "message": "Your IP is blocked."}), 403
+
 
 @app.context_processor
 def inject_user():
@@ -306,6 +378,188 @@ def check_csrf():
     if not token or token != session.get("csrf_token"):
         return False
     return True
+
+
+def create_jwt(user_id, expires_delta=None):
+    secret = app.config.get("JWT_SECRET")
+    now = datetime.utcnow()
+    exp = now + (expires_delta or timedelta(hours=1))
+    payload = {"sub": str(user_id), "iat": int(now.timestamp()), "exp": int(exp.timestamp())}
+    token = jwt.encode(payload, secret, algorithm="HS256")
+    return token
+
+
+def verify_jwt(token):
+    secret = app.config.get("JWT_SECRET")
+    try:
+        payload = jwt.decode(token, secret, algorithms=["HS256"])
+        return payload
+    except Exception:
+        return None
+
+
+def jwt_required(f):
+    from functools import wraps
+
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        auth = request.headers.get("Authorization", "")
+        if not auth.startswith("Bearer "):
+            return jsonify({"status": "error", "message": "Missing or invalid token."}), 401
+        token = auth.split(" ", 1)[1]
+        payload = verify_jwt(token)
+        if not payload:
+            return jsonify({"status": "error", "message": "Invalid or expired token."}), 401
+        request.jwt_payload = payload
+        return f(*args, **kwargs)
+
+    return wrapper
+
+
+def log_action(user_id, action, details=None):
+    try:
+        audit = AuditLog(user_id=user_id, action=action, ip=request.remote_addr, details=details)
+        db.session.add(audit)
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+
+
+def admin_required(f):
+    from functools import wraps
+
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        auth = request.headers.get("Authorization", "")
+        if not auth.startswith("Bearer "):
+            return jsonify({"status": "error", "message": "Missing token."}), 401
+        payload = verify_jwt(auth.split(" ", 1)[1])
+        if not payload:
+            return jsonify({"status": "error", "message": "Invalid token."}), 401
+        user = User.query.get(int(payload.get("sub")))
+        if not user or user.role != "admin":
+            return jsonify({"status": "error", "message": "Admin access required."}), 403
+        request.jwt_payload = payload
+        return f(*args, **kwargs)
+
+    return wrapper
+
+
+@app.route("/api/audit")
+@admin_required
+def api_audit():
+    entries = AuditLog.query.order_by(AuditLog.created_at.desc()).limit(200).all()
+    return jsonify([{"id": e.id, "user_id": e.user_id, "action": e.action, "ip": e.ip, "details": e.details, "created_at": e.created_at.isoformat()} for e in entries])
+
+
+@app.route("/api/messages", methods=["POST"])
+@jwt_required
+def api_send_message():
+    data = request.get_json() or {}
+    sender_id = int(request.jwt_payload.get("sub"))
+    recipient_id = int(data.get("recipient_id") or 0)
+    plaintext = data.get("message", "").strip()
+    if not recipient_id or not plaintext:
+        return jsonify({"status": "error", "message": "Recipient and message are required."}), 400
+
+    # simple flood detection
+    throttle = MessageThrottle.query.get(sender_id)
+    now_ts = datetime.utcnow().timestamp()
+    window = 60  # seconds
+    limit = 20
+    if not throttle:
+        throttle = MessageThrottle(user_id=sender_id, window_start=now_ts, count=1)
+        db.session.add(throttle)
+    else:
+        if not throttle.window_start or now_ts - throttle.window_start > window:
+            throttle.window_start = now_ts
+            throttle.count = 1
+        else:
+            throttle.count = throttle.count + 1
+    if throttle.count > limit:
+        db.session.commit()
+        return jsonify({"status": "error", "message": "Message rate limit exceeded."}), 429
+
+    # encrypt message
+    ciphertext = _fernet.encrypt(plaintext.encode())
+    # compute HMAC
+    sig = hmac.new(app.secret_key.encode(), ciphertext, hashlib.sha256).hexdigest()
+
+    msg = Message(sender_id=sender_id, recipient_id=recipient_id, ciphertext=ciphertext, hmac_sig=sig)
+    db.session.add(msg)
+    try:
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": "Failed to store message."}), 500
+
+    log_action(sender_id, "send_message", f"to={recipient_id} msg_id={msg.id}")
+
+    return jsonify({"status": "success", "message": "Message sent.", "id": msg.id}), 201
+
+
+@app.route("/api/messages/<int:message_id>")
+@jwt_required
+def api_get_message(message_id):
+    user_id = int(request.jwt_payload.get("sub"))
+    msg = Message.query.get(message_id)
+    if not msg:
+        return jsonify({"status": "error", "message": "Message not found."}), 404
+    if msg.recipient_id != user_id and msg.sender_id != user_id:
+        return jsonify({"status": "error", "message": "Not authorized to view this message."}), 403
+
+    # verify HMAC
+    expected = hmac.new(app.secret_key.encode(), msg.ciphertext, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, msg.hmac_sig):
+        return jsonify({"status": "error", "message": "Message integrity check failed."}), 500
+
+    try:
+        plaintext = _fernet.decrypt(msg.ciphertext).decode()
+    except Exception:
+        return jsonify({"status": "error", "message": "Failed to decrypt message."}), 500
+
+    return jsonify({"status": "success", "message": plaintext, "from": msg.sender_id, "created_at": msg.created_at.isoformat()}), 200
+
+
+@app.route("/api/devices")
+@jwt_required
+def api_devices():
+    user_id = int(request.jwt_payload.get("sub"))
+    devices = DeviceSession.query.filter_by(user_id=user_id, revoked=False).all()
+    return jsonify([{"id": d.id, "device_info": d.device_info, "created_at": d.created_at.isoformat(), "last_active": d.last_active.isoformat()} for d in devices])
+
+
+@app.route("/api/devices/revoke", methods=["POST"])
+@jwt_required
+def api_revoke_device():
+    data = request.get_json() or {}
+    user_id = int(request.jwt_payload.get("sub"))
+    device_id = data.get("device_id")
+    if not device_id:
+        return jsonify({"status": "error", "message": "device_id required"}), 400
+    device = DeviceSession.query.get(int(device_id))
+    if not device or device.user_id != user_id:
+        return jsonify({"status": "error", "message": "Not found"}), 404
+    device.revoked = True
+    db.session.commit()
+    log_action(user_id, "revoke_device", f"device={device_id}")
+    return jsonify({"status": "success", "message": "Device revoked."})
+
+
+@socketio.on("connect")
+def handle_connect():
+    token = request.args.get("token") or request.headers.get("Authorization", "").replace("Bearer ", "")
+    payload = None
+    if token:
+        payload = verify_jwt(token)
+    if not payload:
+        print("Socket connection rejected: invalid token")
+        return False
+    user_id = int(payload.get("sub"))
+    # attach user info to session
+    request.environ["user_id"] = user_id
+    log_action(user_id, "socket_connect", f"sid={request.sid}")
+    emit("connected", {"message": "connected"})
 
 
 @app.route("/")
@@ -446,6 +700,17 @@ def api_listings():
             visible_copy.pop(key, None)
         visible_listings.append(visible_copy)
     return jsonify(visible_listings)
+
+
+@app.route("/api/me")
+@jwt_required
+def api_me():
+    payload = request.jwt_payload
+    user_id = payload.get("sub")
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"status": "error", "message": "User not found."}), 404
+    return jsonify({"id": user.id, "name": user.name, "email": user.email, "role": user.role})
 
 
 @app.route("/api/listing/<int:listing_id>")
@@ -594,16 +859,20 @@ def api_register():
     if User.query.filter(db.func.lower(User.email) == email.lower()).first():
         return jsonify({"status": "error", "message": "Email already registered."}), 400
 
+    hashed = generate_password_hash(password)
     user = User(
         name=name,
         email=email,
-        password=password,
+        password=hashed,
         role=role,
     )
     db.session.add(user)
     db.session.commit()
     # Log the user in after registration
+    session.permanent = True
     session["user_id"] = user.id
+    session.modified = True
+    token = create_jwt(user.id)
     return jsonify({"status": "success", "message": "Account created successfully."}), 201
 
 
@@ -622,7 +891,7 @@ def api_login():
     if throttle and throttle.suspended_until and throttle.suspended_until > now_ts:
         return jsonify({"status": "error", "message": "Account temporarily suspended due to multiple failed login attempts. Try again later."}), 429
 
-    if not user or (user.password != password and user.temp_password != password):
+    if not user or (not check_password_hash(user.password, password) and user.temp_password != password):
         # increment throttle
         if not throttle:
             throttle = LoginThrottle(email=email.lower(), failed_count=1)
@@ -640,13 +909,16 @@ def api_login():
         db.session.delete(throttle)
         db.session.commit()
 
+    session.permanent = True
     session["user_id"] = user.id
+    session.modified = True
+    token = create_jwt(user.id)
 
     message = f"Welcome back, {user.name}!"
     if user.temp_password == password:
         message = "Logged in with a temporary password. Please reset your password now."
 
-    return jsonify({"status": "success", "message": message, "name": user.name}), 200
+    return jsonify({"status": "success", "message": message, "name": user.name, "token": token}), 200
 
 
 @app.route("/api/survey-request", methods=["POST"])
