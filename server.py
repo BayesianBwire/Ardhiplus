@@ -2,13 +2,15 @@ from datetime import datetime
 import json
 import re
 import secrets
-from flask import Flask, jsonify, redirect, render_template, request, url_for
+from flask import Flask, jsonify, redirect, render_template, request, url_for, session, g
+import os
 from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 app.config["JSON_SORT_KEYS"] = False
 app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://postgres.iyyznlbcdiqqjcugfvdg:Ardhiplus%4020@aws-1-eu-central-2.pooler.supabase.com:6543/postgres"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-secret-key-change-me")
 
 db = SQLAlchemy(app)
 
@@ -165,6 +167,15 @@ class PasswordResetToken(db.Model):
             "expires": self.expires,
         }
 
+
+class LoginThrottle(db.Model):
+    email = db.Column(db.String(255), primary_key=True)
+    failed_count = db.Column(db.Integer, default=0)
+    suspended_until = db.Column(db.Float, nullable=True)
+
+    def to_dict(self):
+        return {"email": self.email, "failed_count": self.failed_count, "suspended_until": self.suspended_until}
+
 initial_listings = [
     {
         "title": "Prime Residential Plot",
@@ -262,11 +273,39 @@ def init_db():
 
 
 def is_strong_password(password):
-    if len(password) != 8:
-        return "Password must be exactly 8 characters long."
+    if len(password) < 8:
+        return "Password must be at least 8 characters long."
     if not re.search(r"[A-Za-z]", password) or not re.search(r"\d", password):
         return "Password must include both letters and numbers."
     return None
+
+
+@app.before_request
+def load_current_user():
+    g.user = None
+    user_id = session.get("user_id")
+    if user_id:
+        try:
+            g.user = User.query.get(int(user_id))
+        except Exception:
+            g.user = None
+
+    # ensure a CSRF token exists in session for forms/JS
+    if "csrf_token" not in session:
+        session["csrf_token"] = secrets.token_urlsafe(16)
+
+
+@app.context_processor
+def inject_user():
+    return {"current_user": getattr(g, "user", None)}
+
+
+def check_csrf():
+    # Expect header 'X-CSRF-Token' to match session token
+    token = request.headers.get("X-CSRF-Token") or request.headers.get("X-XSRF-TOKEN")
+    if not token or token != session.get("csrf_token"):
+        return False
+    return True
 
 
 @app.route("/")
@@ -341,6 +380,8 @@ def reset_password():
 @app.route("/api/forgot-password", methods=["POST"])
 def api_forgot_password():
     data = request.get_json() or {}
+    if not check_csrf():
+        return jsonify({"status": "error", "message": "Invalid CSRF token."}), 400
     email = data.get("email", "").strip().lower()
     if not email:
         return jsonify({"status": "error", "message": "Please provide your email address."}), 400
@@ -368,6 +409,8 @@ def api_forgot_password():
 @app.route("/api/reset-password", methods=["POST"])
 def api_reset_password():
     data = request.get_json() or {}
+    if not check_csrf():
+        return jsonify({"status": "error", "message": "Invalid CSRF token."}), 400
     token = data.get("token", "").strip()
     new_password = data.get("new_password", "").strip()
 
@@ -416,6 +459,8 @@ def api_listing(listing_id):
 @app.route("/api/post-listing", methods=["POST"])
 def api_post_listing():
     data = request.get_json() or {}
+    if not check_csrf():
+        return jsonify({"status": "error", "message": "Invalid CSRF token."}), 400
     title = data.get("title", "").strip()
     location = data.get("location", "").strip()
     property_type = data.get("type", "").strip()
@@ -463,6 +508,8 @@ def api_post_listing():
 @app.route("/api/interest-request", methods=["POST"])
 def api_interest_request():
     data = request.get_json() or {}
+    if not check_csrf():
+        return jsonify({"status": "error", "message": "Invalid CSRF token."}), 400
     property_title = data.get("property_title", "").strip()
     buyer_name = data.get("buyer_name", "").strip()
     buyer_email = data.get("buyer_email", "").strip()
@@ -487,6 +534,8 @@ def api_interest_request():
 @app.route("/api/connect-request", methods=["POST"])
 def api_connect_request():
     data = request.get_json() or {}
+    if not check_csrf():
+        return jsonify({"status": "error", "message": "Invalid CSRF token."}), 400
     request_id = data.get("request_id")
     request_item = InterestRequest.query.get(request_id)
     if not request_item:
@@ -500,6 +549,8 @@ def api_connect_request():
 @app.route("/api/report", methods=["POST"])
 def api_report():
     data = request.get_json() or {}
+    if not check_csrf():
+        return jsonify({"status": "error", "message": "Invalid CSRF token."}), 400
     listing_title = data.get("listing_title", "").strip()
     reporter_name = data.get("reporter_name", "").strip()
     reporter_email = data.get("reporter_email", "").strip()
@@ -522,6 +573,8 @@ def api_report():
 @app.route("/api/register", methods=["POST"])
 def api_register():
     data = request.get_json() or {}
+    if not check_csrf():
+        return jsonify({"status": "error", "message": "Invalid CSRF token."}), 400
     email = data.get("email", "").strip()
     password = data.get("password", "").strip()
     name = data.get("name", "").strip()
@@ -549,24 +602,51 @@ def api_register():
     )
     db.session.add(user)
     db.session.commit()
+    # Log the user in after registration
+    session["user_id"] = user.id
     return jsonify({"status": "success", "message": "Account created successfully."}), 201
 
 
 @app.route("/api/login", methods=["POST"])
 def api_login():
     data = request.get_json() or {}
+    if not check_csrf():
+        return jsonify({"status": "error", "message": "Invalid CSRF token."}), 400
     email = data.get("email", "").strip()
     password = data.get("password", "").strip()
 
     user = User.query.filter(db.func.lower(User.email) == email.lower()).first()
+    # Check throttling
+    throttle = LoginThrottle.query.get(email.lower())
+    now_ts = datetime.utcnow().timestamp()
+    if throttle and throttle.suspended_until and throttle.suspended_until > now_ts:
+        return jsonify({"status": "error", "message": "Account temporarily suspended due to multiple failed login attempts. Try again later."}), 429
+
     if not user or (user.password != password and user.temp_password != password):
+        # increment throttle
+        if not throttle:
+            throttle = LoginThrottle(email=email.lower(), failed_count=1)
+            db.session.add(throttle)
+        else:
+            throttle.failed_count = (throttle.failed_count or 0) + 1
+            if throttle.failed_count >= 5:
+                throttle.suspended_until = now_ts + 3600  # 1 hour suspension
+                throttle.failed_count = 0
+        db.session.commit()
         return jsonify({"status": "error", "message": "Incorrect email or password."}), 401
+
+    # Successful login: clear throttle and set session
+    if throttle:
+        db.session.delete(throttle)
+        db.session.commit()
+
+    session["user_id"] = user.id
 
     message = f"Welcome back, {user.name}!"
     if user.temp_password == password:
         message = "Logged in with a temporary password. Please reset your password now."
 
-    return jsonify({"status": "success", "message": message})
+    return jsonify({"status": "success", "message": message, "name": user.name}), 200
 
 
 @app.route("/api/survey-request", methods=["POST"])
@@ -604,6 +684,12 @@ def api_verify_listing():
     listing.badge = "Verified Survey"
     db.session.commit()
     return jsonify({"status": "success", "message": "Listing verified and approved."})
+
+
+@app.route("/logout")
+def logout():
+    session.pop("user_id", None)
+    return redirect(url_for("home"))
 
 
 if __name__ == "__main__":

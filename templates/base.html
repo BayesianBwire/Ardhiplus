@@ -21,8 +21,13 @@
           <a href="/contact">Contact</a>
         </nav>
         <div class="nav-actions">
-          <a class="button button-outline" href="/login">Login</a>
-          <a class="button button-primary" href="/register">Register</a>
+          {% if current_user %}
+            <span class="nav-welcome">Welcome, {{ current_user.name }}</span>
+            <a class="button button-outline" href="/logout">Logout</a>
+          {% else %}
+            <a class="button button-outline" href="/login">Login</a>
+            <a class="button button-primary" href="/register">Register</a>
+          {% endif %}
         </div>
       </div>
     </header>
@@ -54,6 +59,7 @@
       </div>
     </footer>
 
+    <script>window.CSRF_TOKEN = "{{ session.csrf_token }}";</script>
     <script src="/static/js/main.js"></script>
   </body>
 </html>

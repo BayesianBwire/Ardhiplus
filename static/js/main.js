@@ -184,19 +184,27 @@ async function handleForm(formId, apiPath, messageSelector, payloadMapper) {
 
     const payload = payloadMapper(formData);
 
+    const headers = {"Content-Type": "application/json"};
+    if (window && window.CSRF_TOKEN) headers["X-CSRF-Token"] = window.CSRF_TOKEN;
+
     const response = await fetch(apiPath, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify(payload),
+      credentials: "same-origin",
     });
 
     const result = await response.json();
     showMessage(messageSelector, result.message, response.ok ? "success" : "error");
 
-    if (response.ok && (formId === "register-form" || formId === "connection-form")) {
-      form.reset();
+    if (response.ok) {
+      if (formId === "register-form" || formId === "connection-form") {
+        form.reset();
+      }
+      // On successful login or register, reload to pick up session and welcome name
+      if (formId === "login-form" || formId === "register-form") {
+        setTimeout(() => (window.location.href = "/"), 500);
+      }
     }
   });
 }
