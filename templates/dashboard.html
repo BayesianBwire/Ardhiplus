@@ -1,26 +1,64 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="section-heading">
-  <h1>Seller dashboard</h1>
-  <p>Manage your listings, buyer inquiries, and sales resources from one broker-ready dashboard.</p>
+  <h1>
+    {% if current_user %}
+      {% if current_user.role == 'agent' %}
+        Agent dashboard
+      {% elif current_user.role == 'broker' %}
+        Broker dashboard
+      {% elif current_user.role == 'land_owner' %}
+        Land owner dashboard
+      {% else %}
+        Seller dashboard
+      {% endif %}
+    {% else %}
+      Seller dashboard
+    {% endif %}
+  </h1>
+  <p>
+    {% if current_user %}
+      {% if current_user.role == 'agent' %}
+        Manage client listings, schedule viewings, and share verified offers with buyers.
+      {% elif current_user.role == 'broker' %}
+        Manage agency property portfolios, client approvals, and broker sales workflows.
+      {% elif current_user.role == 'land_owner' %}
+        Track your land listings, verification status, and direct buyer interest.
+      {% else %}
+        Manage your listings, buyer inquiries, and sales resources from one dashboard.
+      {% endif %}
+    {% else %}
+      Manage your listings, buyer inquiries, and sales resources from one dashboard.
+    {% endif %}
+  </p>
 </section>
 
 <div class="dashboard-grid">
   <article class="dashboard-card">
-    <h2>My listings</h2>
-    <p>See the houses and property listings you currently sell, including verified status and price.</p>
+    <h2>{% if current_user and current_user.role == 'agent' %}Agent listings{% elif current_user and current_user.role == 'broker' %}Broker listings{% elif current_user and current_user.role == 'land_owner' %}Landowner listings{% else %}My listings{% endif %}</h2>
+    <p>See all the properties you manage, including sales status, verification, and buyer requests.</p>
   </article>
   <article class="dashboard-card">
-    <h2>Edit or remove listings</h2>
-    <p>Update listing details, adjust pricing, or take a property off the marketplace.</p>
+    <h2>{% if current_user and current_user.role == 'agent' %}Client offers{% else %}Edit or remove listings{% endif %}</h2>
+    <p>{% if current_user and current_user.role == 'agent' %}Update buyer proposals and close deals faster with approved agent support.{% else %}Update listing details, adjust prices, or remove properties from the marketplace.{% endif %}</p>
   </article>
   <article class="dashboard-card">
-    <h2>Views and inquiries</h2>
-    <p>Review listing views, buyer questions, and interest from serious leads.</p>
+    <h2>{% if current_user and current_user.role == 'land_owner' %}Survey & verification{% else %}Views and inquiries{% endif %}</h2>
+    <p>{% if current_user and current_user.role == 'land_owner' %}Monitor survey status, land verification, and buyer inquiries for your property.{% else %}Review listing views, buyer questions, and lead interest from serious buyers.{% endif %}</p>
   </article>
   <article class="dashboard-card">
-    <h2>Sales training</h2>
-    <p>Access guidance for closing property deals, listing homes, and working as a broker.</p>
+    <h2>{% if current_user and current_user.role == 'broker' %}Broker resources{% else %}Sales training{% endif %}</h2>
+    <p>{% if current_user and current_user.role == 'broker' %}Access tips for brokerage success, client conversion, and agency growth.{% else %}Access guidance for closing property deals, listing homes, and working smarter in sales.{% endif %}</p>
   </article>
 </div>
+
+<section class="form-panel">
+  <h2>Quick actions</h2>
+  <ul class="feature-list">
+    <li>Post a new property for approval and verification.</li>
+    <li>{% if current_user and current_user.role == 'agent' %}Share buyer-ready offers and manage field visits.{% elif current_user and current_user.role == 'broker' %}Coordinate agency listings and monitor commission progress.{% elif current_user and current_user.role == 'land_owner' %}Track buyer interest and confirm survey review status.{% else %}Submit your property details and monitor buyer interest.{% endif %}</li>
+    <li>Stay connected with verified buyers and survey teams.</li>
+  </ul>
+  <p class="mt-5"><a href="/post-property" class="button button-primary">Post a Property</a></p>
+</section>
 {% endblock %}

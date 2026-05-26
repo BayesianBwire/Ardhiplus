@@ -40,6 +40,19 @@ function parsePrice(price) {
   return Number(price.replace(/[^0-9]/g, "")) || 0;
 }
 
+function parseCoords(value) {
+  if (!value) {
+    return { lat: 0.0, lng: 0.0 };
+  }
+  const parts = value.split(",").map((part) => part.trim());
+  const lat = parseFloat(parts[0]);
+  const lng = parseFloat(parts[1]);
+  if (parts.length === 2 && !Number.isNaN(lat) && !Number.isNaN(lng)) {
+    return { lat, lng };
+  }
+  return { lat: 0.0, lng: 0.0 };
+}
+
 function getSizeCategory(size) {
   if (size.includes("acre")) {
     const value = Number(size.replace(/[^0-9.]/g, ""));
@@ -184,19 +197,29 @@ async function handleForm(formId, apiPath, messageSelector, payloadMapper) {
 
     const payload = payloadMapper(formData);
 
+    const headers = {"Content-Type": "application/json"};
+    if (window && window.CSRF_TOKEN) headers["X-CSRF-Token"] = window.CSRF_TOKEN;
+
     const response = await fetch(apiPath, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify(payload),
+      credentials: "same-origin",
     });
 
     const result = await response.json();
     showMessage(messageSelector, result.message, response.ok ? "success" : "error");
 
-    if (response.ok && (formId === "register-form" || formId === "connection-form")) {
-      form.reset();
+    if (response.ok) {
+      if (formId === "register-form" || formId === "connection-form") {
+        form.reset();
+      }
+      // On successful registration, show verification message; on login, go to dashboard
+      if (formId === "register-form") {
+        setTimeout(() => (window.location.href = "/login"), 2000);
+      } else if (formId === "login-form") {
+        setTimeout(() => (window.location.href = "/dashboard"), 500);
+      }
     }
   });
 }
@@ -321,6 +344,20 @@ function init() {
       email: formData.get("email"),
       role: formData.get("role"),
       password: formData.get("password"),
+    }));
+  }
+
+  if (page === "post-property") {
+    handleForm("post-property-form", "/api/post-listing", "#post-property-message", (formData) => ({
+      title: formData.get("title"),
+      location: formData.get("location"),
+      type: formData.get("type"),
+      size: formData.get("size"),
+      price: formData.get("price"),
+      description: formData.get("description"),
+      seller_name: formData.get("seller_name"),
+      seller_phone: formData.get("seller_phone"),
+      coords: parseCoords(formData.get("coords")),
     }));
   }
 

@@ -1,16 +1,225 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import re
 import secrets
-from flask import Flask, jsonify, redirect, render_template, request, url_for
+import uuid
+from flask import Flask, jsonify, redirect, render_template, request, url_for, session, g
+import os
+import jwt
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from cryptography.fernet import Fernet
+import hmac
+import hashlib
+from flask_socketio import SocketIO, disconnect, emit
+from passlib.hash import bcrypt as passlib_bcrypt
+from sqlalchemy.exc import SQLAlchemyError
 from flask_sqlalchemy import SQLAlchemy
+from dotenv import load_dotenv
+import smtplib
+import ssl
+from email.message import EmailMessage
 
 app = Flask(__name__)
 app.config["JSON_SORT_KEYS"] = False
-app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://postgres.iyyznlbcdiqqjcugfvdg:Ardhiplus%4020@aws-1-eu-central-2.pooler.supabase.com:6543/postgres"
+# Prefer an environment-provided database URL (e.g. for production). Fall back
+# to a local SQLite file for safe development/testing to avoid attempting a
+# remote Postgres connection on machines without network/DNS access.
+app.config["SQLALCHEMY_DATABASE_URI"] = (
+    os.environ.get("SQLALCHEMY_DATABASE_URI")
+    or os.environ.get("DATABASE_URL")
+    or "sqlite:///dev.db"
+)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+# Configure SQLAlchemy engine options for better connection pooling and stability
+# Only apply PostgreSQL-specific options when using PostgreSQL
+engine_options = {
+    "pool_size": 5,
+    "pool_recycle": 3600,
+    "pool_pre_ping": True,
+}
+if app.config["SQLALCHEMY_DATABASE_URI"].startswith("postgresql"):
+    engine_options["connect_args"] = {
+        "connect_timeout": 10,
+        "keepalives": 1,
+        "keepalives_idle": 30,
+    }
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = engine_options
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-secret-key-change-me")
+app.config["JWT_SECRET"] = os.environ.get("JWT_SECRET", "dev-jwt-secret-change-me")
+app.config["PERMANENT_SESSION_LIFETIME"] = int(os.environ.get("SESSION_LIFETIME_SECONDS", 3600 * 2))
+app.config["MESSAGE_KEY"] = os.environ.get("MESSAGE_KEY") or Fernet.generate_key().decode()
+
+# Load .env into environment for local development
+load_dotenv()
+
+# SMTP configuration (used to send registration and password reset emails)
+app.config["SMTP_HOST"] = os.environ.get("SMTP_HOST")
+app.config["SMTP_PORT"] = int(os.environ.get("SMTP_PORT", "587"))
+app.config["SMTP_USER"] = os.environ.get("SMTP_USER")
+app.config["SMTP_PASS"] = os.environ.get("SMTP_PASS")
+app.config["EMAIL_SENDER"] = os.environ.get("EMAIL_SENDER", app.config.get("SMTP_USER") or "no-reply@example.com")
+app.config["SUPPORT_URL"] = os.environ.get("SUPPORT_URL", "https://ardhiplus.co.ke")
+app.config["HELP_EMAIL"] = os.environ.get("HELP_EMAIL", "help@ardhiplus.co.ke")
+app.config["SUPPORT_EMAIL"] = os.environ.get("SUPPORT_EMAIL", "support@ardhiplus.co.ke")
+app.config["ADMIN_EMAIL"] = os.environ.get("ADMIN_EMAIL", "admin@ardhiplus.co.ke")
+app.config["FINANCE_EMAIL"] = os.environ.get("FINANCE_EMAIL", "finance@ardhiplus.co.ke")
+app.config["HR_EMAIL"] = os.environ.get("HR_EMAIL", "hr@ardhiplus.co.ke")
+
+
+# Rate limiter
+limiter = Limiter(app, key_func=get_remote_address, default_limits=["200 per day", "50 per hour"])
+
+# SocketIO
+socketio = SocketIO(app, cors_allowed_origins="*")
+
+# Fernet instance for message encryption
+_fernet = Fernet(app.config["MESSAGE_KEY"].encode())
 
 db = SQLAlchemy(app)
+
+
+def send_email(to_email: str, subject: str, text_body: str, html_body: str | None = None) -> bool:
+    host = app.config.get("SMTP_HOST")
+    port = app.config.get("SMTP_PORT")
+    user = app.config.get("SMTP_USER")
+    password = app.config.get("SMTP_PASS")
+    sender = app.config.get("EMAIL_SENDER")
+
+    if not host or not user or not password:
+        print("SMTP not configured; skipping sending email")
+        return False
+
+    msg = EmailMessage()
+    msg["From"] = sender
+    msg["To"] = to_email
+    msg["Subject"] = subject
+    msg.set_content(text_body)
+    if html_body:
+        msg.add_alternative(html_body, subtype="html")
+
+    context = ssl.create_default_context()
+    try:
+        with smtplib.SMTP(host, port, timeout=10) as server:
+            server.starttls(context=context)
+            server.login(user, password)
+            server.send_message(msg)
+        return True
+    except Exception as e:
+        print(f"Failed to send email to {to_email}: {e}")
+        return False
+
+
+def send_welcome_verification_email(user, verification_link: str, verification_code: str) -> bool:
+    subj = "Welcome to Ardhi Plus — Verify your email"
+    text = (
+        f"Hello {user.name},\n\n"
+        "Welcome to Ardhi Plus.\n\n"
+        "To complete your account setup and secure your account, please verify your email address using the link below:\n\n"
+        f"{verification_link}\n\n"
+        "Alternatively, use this verification code:\n\n"
+        f"{verification_code}\n\n"
+        "This verification helps us:\n\n"
+        "* Protect your account\n"
+        "* Prevent unauthorized access\n"
+        "* Improve platform security\n\n"
+        "If you did not create this account, please ignore this email.\n\n"
+        "Welcome to Ardhi Plus.\n\n"
+        "Best regards,\n"
+        "Ardhi Plus Team\n"
+        f"{app.config.get('SUPPORT_URL')}\n"
+    )
+    html = (
+        f"<p>Hello {user.name},</p>"
+        "<p>Welcome to Ardhi Plus.</p>"
+        "<p>To complete your account setup and secure your account, please verify your email address using the link below:</p>"
+        f"<p><a href=\"{verification_link}\">Verify email</a></p>"
+        "<p>Alternatively, use this verification code:</p>"
+        f"<p><code>{verification_code}</code></p>"
+        "<p>This verification helps us:</p>"
+        "<ul>"
+        "<li>Protect your account</li>"
+        "<li>Prevent unauthorized access</li>"
+        "<li>Improve platform security</li>"
+        "</ul>"
+        "<p>If you did not create this account, please ignore this email.</p>"
+        "<p>Welcome to Ardhi Plus.</p>"
+        "<p>Best regards,<br>Ardhi Plus Team</p>"
+        f"<p><a href=\"{app.config.get('SUPPORT_URL')}\">{app.config.get('SUPPORT_URL')}</a></p>"
+    )
+    return send_email(user.email, subj, text, html)
+
+
+def send_password_reset_email(email: str, reset_link: str, temp_password: str) -> bool:
+    subj = "Ardhi Plus — Password reset instructions"
+    text = (
+        "Hello,\n\n"
+        "We received a request to reset your Ardhiplus account password.\n\n"
+        "To reset your password, click the secure link below:\n\n"
+        f"{reset_link}\n\n"
+        "This password reset link will expire in 30 minutes for security purposes.\n\n"
+        f"Temporary code: {temp_password}\n\n"
+        "If you did not request a password reset, please ignore this email. Your account remains secure.\n\n"
+        "For additional support, contact us through:\n"
+        f"{app.config.get('SUPPORT_URL')}\n\n"
+        "Best regards,\n"
+        "Ardhi Plus Security Team\n"
+    )
+    html = (
+        "<p>Hello,</p>"
+        "<p>We received a request to reset your Ardhiplus account password.</p>"
+        "<p>To reset your password, click the secure link below:</p>"
+        f"<p><a href=\"{reset_link}\">{reset_link}</a></p>"
+        "<p>This password reset link will expire in 30 minutes for security purposes.</p>"
+        f"<p>Temporary code: <code>{temp_password}</code></p>"
+        "<p>If you did not request a password reset, please ignore this email. Your account remains secure.</p>"
+        "<p>For additional support, contact us through:<br>"
+        f"<a href=\"{app.config.get('SUPPORT_URL')}\">{app.config.get('SUPPORT_URL')}</a></p>"
+        "<p>Best regards,<br>Ardhi Plus Security Team</p>"
+    )
+    return send_email(email, subj, text, html)
+
+
+def send_trial_limit_email(user_name: str, to_email: str) -> bool:
+    subj = "Ardhi Plus — Your free trial limit has been reached"
+    text = (
+        f"Hello {user_name},\n\n"
+        "Your free trial on Ardhiplus has reached its limit.\n\n"
+        "To continue accessing premium features, property listings, messaging, and platform tools, please upgrade your account.\n\n"
+        "Why upgrade?\n\n"
+        "* Unlimited access to platform features\n"
+        "* Priority support\n"
+        "* Advanced property tools\n"
+        "* Better visibility for listings\n"
+        "* Secure communication features\n\n"
+        "Upgrade your account here:\n"
+        f"{app.config.get('SUPPORT_URL')}\n\n"
+        "If you believe this message was sent in error, please contact our support team.\n\n"
+        "Thank you for using Ardhiplus.\n\n"
+        "Best regards,\n"
+        "Ardhi Plus Team\n"
+        f"{app.config.get('SUPPORT_URL')}\n"
+    )
+    html = (
+        f"<p>Hello {user_name},</p>"
+        "<p>Your free trial on Ardhiplus has reached its limit.</p>"
+        "<p>To continue accessing premium features, property listings, messaging, and platform tools, please upgrade your account.</p>"
+        "<p>Why upgrade?</p>"
+        "<ul>"
+        "<li>Unlimited access to platform features</li>"
+        "<li>Priority support</li>"
+        "<li>Advanced property tools</li>"
+        "<li>Better visibility for listings</li>"
+        "<li>Secure communication features</li>"
+        "</ul>"
+        f"<p><a href=\"{app.config.get('SUPPORT_URL')}\">Upgrade your account here</a></p>"
+        "<p>If you believe this message was sent in error, please contact our support team.</p>"
+        "<p>Thank you for using Ardhiplus.</p>"
+        "<p>Best regards,<br>Ardhi Plus Team</p>"
+        f"<p><a href=\"{app.config.get('SUPPORT_URL')}\">{app.config.get('SUPPORT_URL')}</a></p>"
+    )
+    return send_email(to_email, subj, text, html)
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -19,6 +228,7 @@ class User(db.Model):
     password = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(50), nullable=False, default="broker")
     registered_at = db.Column(db.DateTime, default=datetime.utcnow)
+    email_verified = db.Column(db.Boolean, default=False)
     temp_password = db.Column(db.String(255), nullable=True)
 
     def to_dict(self):
@@ -27,6 +237,7 @@ class User(db.Model):
             "name": self.name,
             "email": self.email,
             "role": self.role,
+            "verified": self.email_verified,
             "registered_at": self.registered_at.isoformat() + "Z",
         }
 
@@ -165,6 +376,101 @@ class PasswordResetToken(db.Model):
             "expires": self.expires,
         }
 
+
+class EmailVerificationToken(db.Model):
+    token = db.Column(db.String(255), primary_key=True)
+    email = db.Column(db.String(255), nullable=False)
+    code = db.Column(db.String(50), nullable=False)
+    expires = db.Column(db.Float, nullable=False)
+
+    def to_dict(self):
+        return {
+            "token": self.token,
+            "email": self.email,
+            "code": self.code,
+            "expires": self.expires,
+        }
+
+
+class LoginThrottle(db.Model):
+    email = db.Column(db.String(255), primary_key=True)
+    failed_count = db.Column(db.Integer, default=0)
+    suspended_until = db.Column(db.Float, nullable=True)
+
+    def to_dict(self):
+        return {"email": self.email, "failed_count": self.failed_count, "suspended_until": self.suspended_until}
+
+
+class IPBlock(db.Model):
+    ip = db.Column(db.String(100), primary_key=True)
+    reason = db.Column(db.String(255), nullable=True)
+    expires = db.Column(db.Float, nullable=True)
+
+    def to_dict(self):
+        return {"ip": self.ip, "reason": self.reason, "expires": self.expires}
+
+
+class AuditLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, nullable=True)
+    action = db.Column(db.String(255), nullable=False)
+    ip = db.Column(db.String(100), nullable=True)
+    details = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class DeviceSession(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, nullable=False)
+    session_token = db.Column(db.String(255), nullable=False)
+    device_info = db.Column(db.String(512), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_active = db.Column(db.DateTime, default=datetime.utcnow)
+    revoked = db.Column(db.Boolean, default=False)
+
+
+class RefreshToken(db.Model):
+    token = db.Column(db.String(255), primary_key=True)
+    user_id = db.Column(db.Integer, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    revoked = db.Column(db.Boolean, default=False)
+
+
+class TokenBlocklist(db.Model):
+    jti = db.Column(db.String(255), primary_key=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=True)
+
+
+class RolePermission(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    role = db.Column(db.String(50), nullable=False)
+    permission = db.Column(db.String(100), nullable=False)
+
+
+class LoginNotification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, nullable=False)
+    ip = db.Column(db.String(100), nullable=True)
+    device_info = db.Column(db.String(512), nullable=True)
+    message = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class Message(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, nullable=False)
+    recipient_id = db.Column(db.Integer, nullable=False)
+    ciphertext = db.Column(db.LargeBinary, nullable=False)
+    hmac_sig = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class MessageThrottle(db.Model):
+    user_id = db.Column(db.Integer, primary_key=True)
+    window_start = db.Column(db.Float, nullable=True)
+    count = db.Column(db.Integer, default=0)
+
 initial_listings = [
     {
         "title": "Prime Residential Plot",
@@ -262,11 +568,323 @@ def init_db():
 
 
 def is_strong_password(password):
-    if len(password) != 8:
-        return "Password must be exactly 8 characters long."
+    if len(password) < 8:
+        return "Password must be at least 8 characters long."
     if not re.search(r"[A-Za-z]", password) or not re.search(r"\d", password):
         return "Password must include both letters and numbers."
     return None
+
+
+@app.before_request
+def load_current_user():
+    g.user = None
+    user_id = session.get("user_id")
+    if user_id:
+        try:
+            g.user = User.query.get(int(user_id))
+        except Exception:
+            g.user = None
+
+    # ensure a CSRF token exists in session for forms/JS
+    if "csrf_token" not in session:
+        session["csrf_token"] = secrets.token_urlsafe(16)
+
+    # Check IP block (with error handling for DB connection issues)
+    remote = request.remote_addr
+    if remote:
+        try:
+            ipb = IPBlock.query.get(remote)
+            if ipb and ipb.expires and ipb.expires > datetime.utcnow().timestamp():
+                return jsonify({"status": "error", "message": "Your IP is blocked."}), 403
+        except Exception:
+            # Database connection error - log it but allow request to continue
+            # to prevent cascading failures on connection pool exhaustion
+            pass
+
+
+@app.context_processor
+def inject_user():
+    return {"current_user": getattr(g, "user", None)}
+
+
+def check_csrf():
+    # Expect header 'X-CSRF-Token' to match session token
+    token = request.headers.get("X-CSRF-Token") or request.headers.get("X-XSRF-TOKEN")
+    if not token or token != session.get("csrf_token"):
+        return False
+    return True
+
+
+def create_jwt(user_id, expires_delta=None):
+    secret = app.config.get("JWT_SECRET")
+    now = datetime.utcnow()
+    exp = now + (expires_delta or timedelta(minutes=15))
+    jti = str(uuid.uuid4())
+    payload = {"sub": str(user_id), "iat": int(now.timestamp()), "exp": int(exp.timestamp()), "jti": jti, "type": "access"}
+    token = jwt.encode(payload, secret, algorithm="HS256")
+    return token
+
+
+def create_refresh_token(user_id, expires_delta=None):
+    secret = app.config.get("JWT_SECRET")
+    now = datetime.utcnow()
+    exp = now + (expires_delta or timedelta(days=7))
+    jti = str(uuid.uuid4())
+    payload = {"sub": str(user_id), "iat": int(now.timestamp()), "exp": int(exp.timestamp()), "jti": jti, "type": "refresh"}
+    token = jwt.encode(payload, secret, algorithm="HS256")
+    return token
+
+
+def store_refresh_token(token, user_id, expires_at):
+    try:
+        refresh = RefreshToken(token=token, user_id=user_id, expires_at=expires_at)
+        db.session.add(refresh)
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+
+
+def is_token_revoked(jti):
+    if not jti:
+        return True
+    blocked = TokenBlocklist.query.get(jti)
+    return bool(blocked)
+
+
+def blocklist_token(jti, expires_at=None):
+    try:
+        if not jti:
+            return
+        if not TokenBlocklist.query.get(jti):
+            blocked = TokenBlocklist(jti=jti, expires_at=expires_at)
+            db.session.add(blocked)
+            db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+
+
+def verify_jwt(token, expected_type=None):
+    secret = app.config.get("JWT_SECRET")
+    try:
+        payload = jwt.decode(token, secret, algorithms=["HS256"])
+        if expected_type and payload.get("type") != expected_type:
+            return None
+        if is_token_revoked(payload.get("jti")):
+            return None
+        return payload
+    except Exception:
+        return None
+
+
+def log_action(user_id, action, details=None):
+    try:
+        audit = AuditLog(user_id=user_id, action=action, ip=request.remote_addr, details=details)
+        db.session.add(audit)
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+
+
+def notify_login(user_id, message=None):
+    try:
+        notification = LoginNotification(
+            user_id=user_id,
+            ip=request.remote_addr,
+            device_info=request.user_agent.string,
+            message=message or "New login from a device.",
+        )
+        db.session.add(notification)
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+
+
+def jwt_required(f):
+    from functools import wraps
+
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        auth = request.headers.get("Authorization", "")
+        if not auth.startswith("Bearer "):
+            return jsonify({"status": "error", "message": "Missing or invalid token."}), 401
+        token = auth.split(" ", 1)[1]
+        payload = verify_jwt(token, expected_type="access")
+        if not payload:
+            return jsonify({"status": "error", "message": "Invalid or expired token."}), 401
+        request.jwt_payload = payload
+        return f(*args, **kwargs)
+
+    return wrapper
+
+
+def has_permission(user, permission):
+    if not user:
+        return False
+    if user.role == "superadmin":
+        return True
+    if user.role == "admin" and permission.startswith("admin:"):
+        return True
+    return RolePermission.query.filter_by(role=user.role, permission=permission).first() is not None
+
+
+def permission_required(permission):
+    from functools import wraps
+
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            auth = request.headers.get("Authorization", "")
+            if not auth.startswith("Bearer "):
+                return jsonify({"status": "error", "message": "Missing token."}), 401
+            payload = verify_jwt(auth.split(" ", 1)[1], expected_type="access")
+            if not payload:
+                return jsonify({"status": "error", "message": "Invalid or expired token."}), 401
+            user = User.query.get(int(payload.get("sub")))
+            if not user or not has_permission(user, permission):
+                return jsonify({"status": "error", "message": "Permission denied."}), 403
+            request.jwt_payload = payload
+            return f(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+def admin_required(f):
+    from functools import wraps
+
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        auth = request.headers.get("Authorization", "")
+        if not auth.startswith("Bearer "):
+            return jsonify({"status": "error", "message": "Missing token."}), 401
+        payload = verify_jwt(auth.split(" ", 1)[1], expected_type="access")
+        if not payload:
+            return jsonify({"status": "error", "message": "Invalid or expired token."}), 401
+        user = User.query.get(int(payload.get("sub")))
+        if not user or not has_permission(user, "admin:access"):
+            return jsonify({"status": "error", "message": "Admin access required."}), 403
+        request.jwt_payload = payload
+        return f(*args, **kwargs)
+
+    return wrapper
+
+
+@app.route("/api/audit")
+@admin_required
+def api_audit():
+    entries = AuditLog.query.order_by(AuditLog.created_at.desc()).limit(200).all()
+    return jsonify([{"id": e.id, "user_id": e.user_id, "action": e.action, "ip": e.ip, "details": e.details, "created_at": e.created_at.isoformat()} for e in entries])
+
+
+@app.route("/api/messages", methods=["POST"])
+@jwt_required
+def api_send_message():
+    data = request.get_json() or {}
+    sender_id = int(request.jwt_payload.get("sub"))
+    recipient_id = int(data.get("recipient_id") or 0)
+    plaintext = data.get("message", "").strip()
+    if not recipient_id or not plaintext:
+        return jsonify({"status": "error", "message": "Recipient and message are required."}), 400
+
+    # simple flood detection
+    throttle = MessageThrottle.query.get(sender_id)
+    now_ts = datetime.utcnow().timestamp()
+    window = 60  # seconds
+    limit = 20
+    if not throttle:
+        throttle = MessageThrottle(user_id=sender_id, window_start=now_ts, count=1)
+        db.session.add(throttle)
+    else:
+        if not throttle.window_start or now_ts - throttle.window_start > window:
+            throttle.window_start = now_ts
+            throttle.count = 1
+        else:
+            throttle.count = throttle.count + 1
+    if throttle.count > limit:
+        db.session.commit()
+        return jsonify({"status": "error", "message": "Message rate limit exceeded."}), 429
+
+    # encrypt message
+    ciphertext = _fernet.encrypt(plaintext.encode())
+    # compute HMAC
+    sig = hmac.new(app.secret_key.encode(), ciphertext, hashlib.sha256).hexdigest()
+
+    msg = Message(sender_id=sender_id, recipient_id=recipient_id, ciphertext=ciphertext, hmac_sig=sig)
+    db.session.add(msg)
+    try:
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": "Failed to store message."}), 500
+
+    log_action(sender_id, "send_message", f"to={recipient_id} msg_id={msg.id}")
+
+    return jsonify({"status": "success", "message": "Message sent.", "id": msg.id}), 201
+
+
+@app.route("/api/messages/<int:message_id>")
+@jwt_required
+def api_get_message(message_id):
+    user_id = int(request.jwt_payload.get("sub"))
+    msg = Message.query.get(message_id)
+    if not msg:
+        return jsonify({"status": "error", "message": "Message not found."}), 404
+    if msg.recipient_id != user_id and msg.sender_id != user_id:
+        return jsonify({"status": "error", "message": "Not authorized to view this message."}), 403
+
+    # verify HMAC
+    expected = hmac.new(app.secret_key.encode(), msg.ciphertext, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, msg.hmac_sig):
+        return jsonify({"status": "error", "message": "Message integrity check failed."}), 500
+
+    try:
+        plaintext = _fernet.decrypt(msg.ciphertext).decode()
+    except Exception:
+        return jsonify({"status": "error", "message": "Failed to decrypt message."}), 500
+
+    return jsonify({"status": "success", "message": plaintext, "from": msg.sender_id, "created_at": msg.created_at.isoformat()}), 200
+
+
+@app.route("/api/devices")
+@jwt_required
+def api_devices():
+    user_id = int(request.jwt_payload.get("sub"))
+    devices = DeviceSession.query.filter_by(user_id=user_id, revoked=False).all()
+    return jsonify([{"id": d.id, "device_info": d.device_info, "created_at": d.created_at.isoformat(), "last_active": d.last_active.isoformat()} for d in devices])
+
+
+@app.route("/api/devices/revoke", methods=["POST"])
+@jwt_required
+def api_revoke_device():
+    data = request.get_json() or {}
+    user_id = int(request.jwt_payload.get("sub"))
+    device_id = data.get("device_id")
+    if not device_id:
+        return jsonify({"status": "error", "message": "device_id required"}), 400
+    device = DeviceSession.query.get(int(device_id))
+    if not device or device.user_id != user_id:
+        return jsonify({"status": "error", "message": "Not found"}), 404
+    device.revoked = True
+    db.session.commit()
+    log_action(user_id, "revoke_device", f"device={device_id}")
+    return jsonify({"status": "success", "message": "Device revoked."})
+
+
+@socketio.on("connect")
+def handle_connect():
+    token = request.args.get("token") or request.headers.get("Authorization", "").replace("Bearer ", "")
+    payload = None
+    if token:
+        payload = verify_jwt(token)
+    if not payload:
+        print("Socket connection rejected: invalid token")
+        return False
+    user_id = int(payload.get("sub"))
+    # attach user info to session
+    request.environ["user_id"] = user_id
+    log_action(user_id, "socket_connect", f"sid={request.sid}")
+    emit("connected", {"message": "connected"})
 
 
 @app.route("/")
@@ -310,6 +928,11 @@ def dashboard():
     return render_template("dashboard.html", page="dashboard")
 
 
+@app.route("/post-property")
+def post_property():
+    return render_template("post_property.html", page="post-property")
+
+
 @app.route("/ardhimwenyewe")
 def hidden_admin():
     pending_listings = Listing.query.filter_by(verified=False).all()
@@ -341,6 +964,8 @@ def reset_password():
 @app.route("/api/forgot-password", methods=["POST"])
 def api_forgot_password():
     data = request.get_json() or {}
+    if not check_csrf():
+        return jsonify({"status": "error", "message": "Invalid CSRF token."}), 400
     email = data.get("email", "").strip().lower()
     if not email:
         return jsonify({"status": "error", "message": "Please provide your email address."}), 400
@@ -353,21 +978,79 @@ def api_forgot_password():
             token=token,
             email=user.email,
             temp_password=temp_password,
-            expires=datetime.utcnow().timestamp() + 3600,
+            expires=datetime.utcnow().timestamp() + 1800,
         )
         db.session.add(reset_token)
         db.session.commit()
         reset_link = url_for("reset_password", token=token, _external=True)
-        print(
-            f"[Password reset email] to={email} link={reset_link} temp_password={temp_password}"
-        )
+        # Send password reset email (best-effort)
+        try:
+            send_password_reset_email(email, reset_link, temp_password)
+        except Exception:
+            pass
 
     return jsonify({"status": "success", "message": "If this email is registered, reset instructions have been sent."}), 200
+
+
+@app.route("/verify-email")
+def verify_email_page():
+    token = request.args.get("token", "")
+    return render_template("verify_email.html", token=token)
+
+
+@app.route("/api/verify-email", methods=["POST", "GET"])
+def api_verify_email():
+    if request.method == "GET":
+        token = request.args.get("token", "").strip()
+        if not token:
+            return render_template("verify_email.html", error="Verification token is required.")
+        
+        verify_data = EmailVerificationToken.query.get(token)
+        if not verify_data or verify_data.expires < datetime.utcnow().timestamp():
+            return render_template("verify_email.html", error="Verification token is invalid or expired.")
+        
+        user = User.query.filter(db.func.lower(User.email) == verify_data.email.lower()).first()
+        if not user:
+            return render_template("verify_email.html", error="User not found.")
+        
+        user.email_verified = True
+        db.session.delete(verify_data)
+        db.session.commit()
+        return render_template("verify_email.html", success=True)
+    
+    # POST method
+    data = request.get_json() or {}
+    token = data.get("token", "").strip()
+    code = data.get("code", "").strip()
+
+    if not token and not code:
+        return jsonify({"status": "error", "message": "Verification token or code is required."}), 400
+
+    verify_data = None
+    if token:
+        verify_data = EmailVerificationToken.query.get(token)
+    if not verify_data and code:
+        verify_data = EmailVerificationToken.query.filter_by(code=code).first()
+
+    if not verify_data or verify_data.expires < datetime.utcnow().timestamp():
+        return jsonify({"status": "error", "message": "Verification token is invalid or expired."}), 400
+
+    user = User.query.filter(db.func.lower(User.email) == verify_data.email.lower()).first()
+    if not user:
+        return jsonify({"status": "error", "message": "User not found."}), 404
+
+    user.email_verified = True
+    db.session.delete(verify_data)
+    db.session.commit()
+
+    return jsonify({"status": "success", "message": "Email verified successfully."}), 200
 
 
 @app.route("/api/reset-password", methods=["POST"])
 def api_reset_password():
     data = request.get_json() or {}
+    if not check_csrf():
+        return jsonify({"status": "error", "message": "Invalid CSRF token."}), 400
     token = data.get("token", "").strip()
     new_password = data.get("new_password", "").strip()
 
@@ -405,6 +1088,17 @@ def api_listings():
     return jsonify(visible_listings)
 
 
+@app.route("/api/me")
+@jwt_required
+def api_me():
+    payload = request.jwt_payload
+    user_id = payload.get("sub")
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"status": "error", "message": "User not found."}), 404
+    return jsonify({"id": user.id, "name": user.name, "email": user.email, "role": user.role})
+
+
 @app.route("/api/listing/<int:listing_id>")
 def api_listing(listing_id):
     listing = Listing.query.get(listing_id)
@@ -416,6 +1110,8 @@ def api_listing(listing_id):
 @app.route("/api/post-listing", methods=["POST"])
 def api_post_listing():
     data = request.get_json() or {}
+    if not check_csrf():
+        return jsonify({"status": "error", "message": "Invalid CSRF token."}), 400
     title = data.get("title", "").strip()
     location = data.get("location", "").strip()
     property_type = data.get("type", "").strip()
@@ -463,6 +1159,8 @@ def api_post_listing():
 @app.route("/api/interest-request", methods=["POST"])
 def api_interest_request():
     data = request.get_json() or {}
+    if not check_csrf():
+        return jsonify({"status": "error", "message": "Invalid CSRF token."}), 400
     property_title = data.get("property_title", "").strip()
     buyer_name = data.get("buyer_name", "").strip()
     buyer_email = data.get("buyer_email", "").strip()
@@ -487,6 +1185,8 @@ def api_interest_request():
 @app.route("/api/connect-request", methods=["POST"])
 def api_connect_request():
     data = request.get_json() or {}
+    if not check_csrf():
+        return jsonify({"status": "error", "message": "Invalid CSRF token."}), 400
     request_id = data.get("request_id")
     request_item = InterestRequest.query.get(request_id)
     if not request_item:
@@ -500,6 +1200,8 @@ def api_connect_request():
 @app.route("/api/report", methods=["POST"])
 def api_report():
     data = request.get_json() or {}
+    if not check_csrf():
+        return jsonify({"status": "error", "message": "Invalid CSRF token."}), 400
     listing_title = data.get("listing_title", "").strip()
     reporter_name = data.get("reporter_name", "").strip()
     reporter_email = data.get("reporter_email", "").strip()
@@ -522,6 +1224,8 @@ def api_report():
 @app.route("/api/register", methods=["POST"])
 def api_register():
     data = request.get_json() or {}
+    if not check_csrf():
+        return jsonify({"status": "error", "message": "Invalid CSRF token."}), 400
     email = data.get("email", "").strip()
     password = data.get("password", "").strip()
     name = data.get("name", "").strip()
@@ -541,32 +1245,163 @@ def api_register():
     if User.query.filter(db.func.lower(User.email) == email.lower()).first():
         return jsonify({"status": "error", "message": "Email already registered."}), 400
 
+    hashed = generate_password_hash(password)
     user = User(
         name=name,
         email=email,
-        password=password,
+        password=hashed,
         role=role,
     )
     db.session.add(user)
     db.session.commit()
-    return jsonify({"status": "success", "message": "Account created successfully."}), 201
+    # Issue tokens for the new user
+    access_token = create_jwt(user.id)
+    refresh_token = create_refresh_token(user.id)
+    refresh_exp = datetime.utcnow() + timedelta(days=7)
+    store_refresh_token(refresh_token, user.id, refresh_exp)
+
+    session.permanent = True
+    session["user_id"] = user.id
+    session.modified = True
+    notify_login(user.id, "New registration and login completed.")
+
+    verification_token = secrets.token_urlsafe(24)
+    verification_code = secrets.token_hex(3).upper()
+    email_verification = EmailVerificationToken(
+        token=verification_token,
+        email=user.email,
+        code=verification_code,
+        expires=datetime.utcnow().timestamp() + 3600,
+    )
+    db.session.add(email_verification)
+    db.session.commit()
+    verification_link = url_for("verify_email_page", token=verification_token, _external=True)
+
+    # Send welcome + verification email (best-effort)
+    try:
+        send_welcome_verification_email(user, verification_link, verification_code)
+    except Exception:
+        pass
+
+    return jsonify({
+        "status": "success",
+        "message": "Account created successfully. A verification email has been sent.",
+        "token": access_token,
+        "refresh_token": refresh_token,
+    }), 201
 
 
 @app.route("/api/login", methods=["POST"])
 def api_login():
     data = request.get_json() or {}
+    if not check_csrf():
+        return jsonify({"status": "error", "message": "Invalid CSRF token."}), 400
     email = data.get("email", "").strip()
     password = data.get("password", "").strip()
 
     user = User.query.filter(db.func.lower(User.email) == email.lower()).first()
-    if not user or (user.password != password and user.temp_password != password):
+    # Check throttling
+    throttle = LoginThrottle.query.get(email.lower())
+    now_ts = datetime.utcnow().timestamp()
+    if throttle and throttle.suspended_until and throttle.suspended_until > now_ts:
+        return jsonify({"status": "error", "message": "Account temporarily suspended due to multiple failed login attempts. Try again later."}), 429
+
+    if not user or (not check_password_hash(user.password, password) and user.temp_password != password):
+        # increment throttle
+        if not throttle:
+            throttle = LoginThrottle(email=email.lower(), failed_count=1)
+            db.session.add(throttle)
+        else:
+            throttle.failed_count = (throttle.failed_count or 0) + 1
+            if throttle.failed_count >= 5:
+                throttle.suspended_until = now_ts + 3600  # 1 hour suspension
+                throttle.failed_count = 0
+        db.session.commit()
         return jsonify({"status": "error", "message": "Incorrect email or password."}), 401
+
+    # Successful login: clear throttle and set session
+    if throttle:
+        db.session.delete(throttle)
+        db.session.commit()
+
+    if not user.email_verified:
+        return jsonify({"status": "error", "message": "Please verify your email address before logging in."}), 403
+
+    session.permanent = True
+    session["user_id"] = user.id
+    session.modified = True
+    access_token = create_jwt(user.id)
+    refresh_token = create_refresh_token(user.id)
+    refresh_exp = datetime.utcnow() + timedelta(days=7)
+    store_refresh_token(refresh_token, user.id, refresh_exp)
+    notify_login(user.id, "Login successful from a recognized device.")
 
     message = f"Welcome back, {user.name}!"
     if user.temp_password == password:
         message = "Logged in with a temporary password. Please reset your password now."
 
-    return jsonify({"status": "success", "message": message})
+    return jsonify({
+        "status": "success",
+        "message": message,
+        "name": user.name,
+        "token": access_token,
+        "refresh_token": refresh_token,
+    }), 200
+
+
+@app.route("/api/refresh-token", methods=["POST"])
+def api_refresh_token():
+    data = request.get_json() or {}
+    refresh_token = data.get("refresh_token", "").strip()
+    if not refresh_token:
+        return jsonify({"status": "error", "message": "Refresh token required."}), 400
+
+    payload = verify_jwt(refresh_token, expected_type="refresh")
+    if not payload:
+        return jsonify({"status": "error", "message": "Invalid or expired refresh token."}), 401
+
+    refresh = RefreshToken.query.get(refresh_token)
+    if not refresh or refresh.revoked or refresh.expires_at < datetime.utcnow():
+        return jsonify({"status": "error", "message": "Refresh token invalid or revoked."}), 401
+
+    new_access_token = create_jwt(int(payload.get("sub")))
+    return jsonify({"status": "success", "token": new_access_token}), 200
+
+
+@app.route("/api/revoke-token", methods=["POST"])
+def api_revoke_token():
+    data = request.get_json() or {}
+    refresh_token = data.get("refresh_token", "").strip()
+    if not refresh_token:
+        return jsonify({"status": "error", "message": "Refresh token required."}), 400
+
+    refresh = RefreshToken.query.get(refresh_token)
+    if refresh:
+        refresh.revoked = True
+        db.session.commit()
+        log_action(refresh.user_id, "revoke_refresh_token", f"token={refresh_token[:8]}..." )
+    return jsonify({"status": "success", "message": "Refresh token revoked."}), 200
+
+
+@app.route("/api/logout", methods=["POST"])
+def api_logout():
+    auth = request.headers.get("Authorization", "")
+    refresh_token = request.get_json(silent=True) or {}.get("refresh_token", "").strip()
+    if auth.startswith("Bearer "):
+        access_token = auth.split(" ", 1)[1]
+        payload = verify_jwt(access_token, expected_type="access")
+        if payload:
+            blocklist_token(payload.get("jti"), expires_at=datetime.utcfromtimestamp(payload.get("exp", 0)))
+            log_action(int(payload.get("sub")), "logout", "API logout requested.")
+    if refresh_token:
+        refresh = RefreshToken.query.get(refresh_token)
+        if refresh:
+            refresh.revoked = True
+            db.session.commit()
+            log_action(refresh.user_id, "logout_refresh_token", f"token={refresh_token[:8]}..." )
+    session.pop("user_id", None)
+    session.modified = True
+    return jsonify({"status": "success", "message": "Logged out."}), 200
 
 
 @app.route("/api/survey-request", methods=["POST"])
@@ -604,6 +1439,12 @@ def api_verify_listing():
     listing.badge = "Verified Survey"
     db.session.commit()
     return jsonify({"status": "success", "message": "Listing verified and approved."})
+
+
+@app.route("/logout")
+def logout():
+    session.pop("user_id", None)
+    return redirect(url_for("home"))
 
 
 if __name__ == "__main__":

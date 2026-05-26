@@ -27,11 +27,15 @@ function Dashboard() {
 
       <div className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-8 shadow-soft">
         <h2 className="text-2xl font-semibold text-white">Quick actions</h2>
-        <ul className="mt-4 space-y-3 text-slate-300">
-          <li>✅ Add a new listing</li>
-          <li>✅ Review buyer interest</li>
-          <li>✅ Visit training resources</li>
-        </ul>
+        <div className="mt-4 space-y-3 text-slate-300">
+          <p>
+            <a href="/post-property" className="inline-block rounded-full bg-sky-500 px-6 py-2 text-sm font-semibold text-slate-950 transition hover:bg-sky-400">
+              Post a Property
+            </a>
+          </p>
+          <p>✅ Review buyer interest</p>
+          <p>✅ Visit training resources</p>
+        </div>
       </div>
     </section>
   );
