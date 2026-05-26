@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="section-heading">
+  <h1>Post a property</h1>
+  <p>
+    {% if current_user %}
+      {% if current_user.role == 'agent' %}
+        Submit a new property listing as an agent, manage buyer interest, and send commission-ready offers.
+      {% elif current_user.role == 'broker' %}
+        Upload land and property listings for your clients, manage agency inventory, and keep verification status visible.
+      {% elif current_user.role == 'land_owner' %}
+        Share your land or home listing with verified buyers and get admin review for survey-backed sales.
+      {% else %}
+        Submit your property details for admin review and professional survey verification.
+      {% endif %}
+    {% else %}
+      Submit your property details for admin review and professional survey verification.
+    {% endif %}
+  </p>
+</section>
+
+<section class="form-panel">
+  <form id="post-property-form" class="panel-form">
+    <label>Property title<input name="title" required placeholder="e.g. Prime residential plot" /></label>
+    <label>Location<input name="location" required placeholder="Nairobi, Kenya" /></label>
+    <label>Property type<select name="type" required>
+      <option value="Residential">Residential</option>
+      <option value="Commercial">Commercial</option>
+      <option value="Agricultural">Agricultural</option>
+    </select></label>
+    <label>Size<input name="size" required placeholder="e.g. 1.2 acres" /></label>
+    <label>Price<input name="price" required placeholder="KES 12,500,000" /></label>
+    <label>Description<textarea name="description" rows="4" required placeholder="Enter details for the listing"></textarea></label>
+    <label>Your name<input name="seller_name" required placeholder="Your name" /></label>
+    <label>Phone<input name="seller_phone" required placeholder="+254 700 000 000" /></label>
+    <label>Coordinates<input name="coords" placeholder="Latitude, Longitude" /></label>
+    <button type="submit" class="button button-primary">Submit listing</button>
+  </form>
+  <div id="post-property-message" class="form-message"></div>
+</section>
+{% endblock %}

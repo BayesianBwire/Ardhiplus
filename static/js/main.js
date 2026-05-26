@@ -40,6 +40,19 @@ function parsePrice(price) {
   return Number(price.replace(/[^0-9]/g, "")) || 0;
 }
 
+function parseCoords(value) {
+  if (!value) {
+    return { lat: 0.0, lng: 0.0 };
+  }
+  const parts = value.split(",").map((part) => part.trim());
+  const lat = parseFloat(parts[0]);
+  const lng = parseFloat(parts[1]);
+  if (parts.length === 2 && !Number.isNaN(lat) && !Number.isNaN(lng)) {
+    return { lat, lng };
+  }
+  return { lat: 0.0, lng: 0.0 };
+}
+
 function getSizeCategory(size) {
   if (size.includes("acre")) {
     const value = Number(size.replace(/[^0-9.]/g, ""));
@@ -201,9 +214,11 @@ async function handleForm(formId, apiPath, messageSelector, payloadMapper) {
       if (formId === "register-form" || formId === "connection-form") {
         form.reset();
       }
-      // On successful login or register, reload to pick up session and welcome name
-      if (formId === "login-form" || formId === "register-form") {
-        setTimeout(() => (window.location.href = "/"), 500);
+      // On successful registration, show verification message; on login, go to dashboard
+      if (formId === "register-form") {
+        setTimeout(() => (window.location.href = "/login"), 2000);
+      } else if (formId === "login-form") {
+        setTimeout(() => (window.location.href = "/dashboard"), 500);
       }
     }
   });
@@ -329,6 +344,20 @@ function init() {
       email: formData.get("email"),
       role: formData.get("role"),
       password: formData.get("password"),
+    }));
+  }
+
+  if (page === "post-property") {
+    handleForm("post-property-form", "/api/post-listing", "#post-property-message", (formData) => ({
+      title: formData.get("title"),
+      location: formData.get("location"),
+      type: formData.get("type"),
+      size: formData.get("size"),
+      price: formData.get("price"),
+      description: formData.get("description"),
+      seller_name: formData.get("seller_name"),
+      seller_phone: formData.get("seller_phone"),
+      coords: parseCoords(formData.get("coords")),
     }));
   }
 

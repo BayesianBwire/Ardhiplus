@@ -1,0 +1,25 @@
+# Environment and secrets
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+venv/
+.venv/
+env/
+
+# Local DB
+dev.db
+
+# IDEs
+.vscode/
+.idea/
+
+# macOS
+.DS_Store
+
+# pytest cache
+.pytest_cache/
