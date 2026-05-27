@@ -1452,9 +1452,9 @@ def logout():
 with app.app_context():
     try:
         db.create_all()
-        print("✓ Database tables initialized")
+        print("Database tables initialized")
     except Exception as e:
-        print(f"⚠ Warning: Could not create database tables: {e}")
+        print(f"Warning: Could not create database tables: {e}")
 
 
 if __name__ == "__main__":
