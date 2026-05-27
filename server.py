@@ -1447,6 +1447,16 @@ def logout():
     return redirect(url_for("home"))
 
 
+# Create database tables on app startup (needed for gunicorn/Render deployment)
+# This runs for both 'python server.py' and 'gunicorn server:app'
+with app.app_context():
+    try:
+        db.create_all()
+        print("Database tables initialized")
+    except Exception as e:
+        print(f"Warning: Could not create database tables: {e}")
+
+
 if __name__ == "__main__":
     with app.app_context():
         init_db()
