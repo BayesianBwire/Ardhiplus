@@ -76,6 +76,91 @@ function Home() {
         </div>
       </div>
 
+      {/* Hot Deals Section */}
+      <div className="space-y-6">
+        <div>
+          <span className="inline-flex rounded-full bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-300">
+            🔥 Best deals right now
+          </span>
+          <h2 className="mt-4 text-3xl font-bold text-white">Hot Properties</h2>
+          <p className="mt-2 max-w-2xl text-slate-400">
+            Recently listed verified properties at competitive prices. Don't miss these opportunities.
+          </p>
+        </div>
+        <div className="grid gap-6 lg:grid-cols-4">
+          {mockListings.slice(0, 4).map((listing) => (
+            <Link
+              key={listing.id}
+              to={`/property/${listing.id}`}
+              className="group rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6 shadow-soft transition hover:border-sky-500 hover:bg-slate-800"
+            >
+              <div className="overflow-hidden rounded-3xl bg-slate-800 mb-4">
+                <img src={listing.images[0]} alt={listing.title} className="h-40 w-full object-cover group-hover:scale-105 transition" />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.25em] text-sky-300">{listing.county}</p>
+                    <h3 className="mt-1 text-lg font-semibold text-white group-hover:text-sky-300 transition">{listing.title}</h3>
+                  </div>
+                  {listing.verified && (
+                    <span className="inline-flex rounded-full bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-300">✓</span>
+                  )}
+                </div>
+                <p className="text-2xl font-bold text-white">{listing.price}</p>
+                <p className="text-sm text-slate-400">{listing.size}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+        <div className="text-center">
+          <Link
+            to="/listings"
+            className="inline-flex rounded-full bg-sky-500 px-6 py-3 text-base font-semibold text-slate-950 transition hover:bg-sky-400"
+          >
+            Browse all listings
+          </Link>
+        </div>
+      </div>
+
+      {/* Trending Locations */}
+      <div className="space-y-6">
+        <div>
+          <span className="inline-flex rounded-full bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-300">
+            📍 Trending now
+          </span>
+          <h2 className="mt-4 text-3xl font-bold text-white">Popular Locations</h2>
+          <p className="mt-2 max-w-2xl text-slate-400">
+            Most active counties with verified properties and strong market demand.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[
+            { county: 'Nairobi', count: 4, icon: '🏙️' },
+            { county: 'Mombasa', count: 1, icon: '🏖️' },
+            { county: 'Nakuru', count: 1, icon: '🏞️' },
+            { county: 'Kiambu', count: 1, icon: '🌳' },
+          ].map((loc) => (
+            <Link
+              key={loc.county}
+              to={`/listings`}
+              onClick={() => {
+                // In real app, would filter listings by county
+                window.scrollTo(0, 0);
+              }}
+              className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6 shadow-soft transition hover:border-sky-500 hover:bg-slate-800 text-center"
+            >
+              <p className="text-4xl mb-3">{loc.icon}</p>
+              <h3 className="text-xl font-semibold text-white">{loc.county}</h3>
+              <p className="mt-2 text-sm text-slate-400">{loc.count} verified properties</p>
+              <p className="mt-3 inline-flex rounded-full bg-sky-500/20 px-3 py-1 text-xs font-semibold text-sky-300">
+                View all →
+              </p>
+            </Link>
+          ))}
+        </div>
+      </div>
+
       <div className="space-y-6">
         <div className="flex items-center justify-between gap-4 rounded-[2rem] border border-slate-800 bg-slate-900/90 px-6 py-6 shadow-soft sm:px-8">
           <div>

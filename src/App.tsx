@@ -3,6 +3,9 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
 import Listings from './pages/Listings';
+import Agents from './pages/Agents';
+import Favorites from './pages/Favorites';
+import MarketplaceStats from './pages/MarketplaceStats';
 import Services from './pages/Services';
 import About from './pages/About';
 import Contact from './pages/Contact';
@@ -25,6 +28,9 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/listings" element={<Listings />} />
+          <Route path="/favorites" element={<Favorites />} />
+          <Route path="/agents" element={<Agents />} />
+          <Route path="/marketplace-stats" element={<MarketplaceStats />} />
           <Route path="/property/:id" element={<PropertyDetail />} />
           <Route path="/services" element={<Services />} />
           <Route path="/post-property" element={<PostProperty />} />

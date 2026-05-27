@@ -3,6 +3,7 @@ import { Link, NavLink } from 'react-router-dom';
 const navItems = [
   { label: 'Home', path: '/' },
   { label: 'Listings', path: '/listings' },
+  { label: 'Agents', path: '/agents' },
   { label: 'Services', path: '/services' },
   { label: 'About', path: '/about' },
   { label: 'Contact', path: '/contact' },
@@ -31,6 +32,13 @@ function Navbar() {
           ))}
         </nav>
         <div className="flex items-center gap-3">
+          <Link
+            to="/favorites"
+            className="rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-200 transition hover:border-rose-400 hover:text-rose-400"
+            title="View favorites"
+          >
+            ❤️ Favorites
+          </Link>
           <Link
             to="/post-property"
             className="rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-200 transition hover:border-sky-400 hover:text-white"

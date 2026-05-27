@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useFavorites } from '../hooks/useFavorites';
 import type { Listing } from '../data/mockListings';
 
 interface PropertyCardProps {
@@ -6,9 +7,12 @@ interface PropertyCardProps {
 }
 
 function PropertyCard({ listing }: PropertyCardProps) {
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const isFav = isFavorite(listing.id);
+
   return (
     <article className="group overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/90 shadow-soft transition hover:-translate-y-1 hover:border-sky-500">
-      <div className="h-48 overflow-hidden bg-slate-800">
+      <div className="relative h-48 overflow-hidden bg-slate-800">
         {listing.images[0] ? (
           <img
             src={listing.images[0]}
@@ -18,6 +22,16 @@ function PropertyCard({ listing }: PropertyCardProps) {
         ) : (
           <div className="flex h-full items-center justify-center text-slate-500">No image available</div>
         )}
+        {/* Favorite Button */}
+        <button
+          onClick={() => toggleFavorite(listing.id)}
+          className="absolute top-3 right-3 rounded-full bg-slate-950/80 p-2 transition hover:bg-slate-950 backdrop-blur-sm"
+          title={isFav ? 'Remove from favorites' : 'Add to favorites'}
+        >
+          <span className={`text-lg transition ${isFav ? 'text-rose-400' : 'text-slate-400 hover:text-rose-400'}`}>
+            {isFav ? '❤️' : '🤍'}
+          </span>
+        </button>
       </div>
       <div className="p-6">
         <div className="mb-4 flex items-center justify-between gap-3">
