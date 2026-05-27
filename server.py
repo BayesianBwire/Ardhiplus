@@ -1277,11 +1277,32 @@ def api_register():
     db.session.commit()
     verification_link = url_for("verify_email_page", token=verification_token, _external=True)
 
-    # Send welcome + verification email (best-effort)
+    # Send welcome + verification email (best-effort) and report status
+    sent = False
     try:
-        send_welcome_verification_email(user, verification_link, verification_code)
-    except Exception:
-        pass
+        sent = send_welcome_verification_email(user, verification_link, verification_code)
+    except Exception as e:
+        app.logger.exception("Unexpected error while sending verification email for %s", user.email)
+        sent = False
+
+    if not sent:
+        app.logger.warning("Verification email NOT sent for %s — check SMTP configuration.", user.email)
+        # In non-production environments include the verification link/code in the response to aid debugging
+        include_debug_link = os.environ.get("FLASK_ENV", "").lower() != "production"
+        resp = {
+            "status": "success",
+            "message": (
+                "Account created but verification email could not be sent. "
+                "Please contact support or verify your email using the link provided."
+            ),
+            "token": access_token,
+            "refresh_token": refresh_token,
+        }
+        if include_debug_link:
+            resp["verification_link"] = verification_link
+            resp["verification_code"] = verification_code
+
+        return jsonify(resp), 201
 
     return jsonify({
         "status": "success",
