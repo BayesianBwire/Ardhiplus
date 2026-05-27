@@ -88,9 +88,11 @@ def send_email(to_email: str, subject: str, text_body: str, html_body: str | Non
     sender = app.config.get("EMAIL_SENDER")
 
     if not host or not user or not password:
+        app.logger.warning("SMTP not configured: host=%s user=%s pass=%s", host, user, "***" if password else None)
         print("SMTP not configured; skipping sending email")
         return False
 
+    app.logger.info("Sending email to %s via %s:%s from %s", to_email, host, port, sender)
     msg = EmailMessage()
     msg["From"] = sender
     msg["To"] = to_email
@@ -102,11 +104,24 @@ def send_email(to_email: str, subject: str, text_body: str, html_body: str | Non
     context = ssl.create_default_context()
     try:
         with smtplib.SMTP(host, port, timeout=10) as server:
+            app.logger.debug("Connected to SMTP server %s:%s", host, port)
             server.starttls(context=context)
+            app.logger.debug("TLS handshake complete")
             server.login(user, password)
+            app.logger.debug("Authenticated to SMTP as %s", user)
             server.send_message(msg)
+        app.logger.info("Successfully sent email to %s", to_email)
         return True
+    except smtplib.SMTPAuthenticationError as e:
+        app.logger.error("SMTP auth failed for user %s: %s", user, str(e))
+        print(f"SMTP auth failed: {e}")
+        return False
+    except smtplib.SMTPException as e:
+        app.logger.error("SMTP error sending to %s: %s", to_email, str(e))
+        print(f"SMTP error: {e}")
+        return False
     except Exception as e:
+        app.logger.exception("Unexpected error sending email to %s", to_email)
         print(f"Failed to send email to {to_email}: {e}")
         return False
 
