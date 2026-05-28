@@ -20,7 +20,7 @@
 </section>
 
 <section class="form-panel">
-  <form id="post-property-form" class="panel-form">
+  <form id="post-property-form" class="panel-form" enctype="multipart/form-data" method="post">
     <label>Property title<input name="title" required placeholder="e.g. Prime residential plot" /></label>
     <label>Location<input name="location" required placeholder="Nairobi, Kenya" /></label>
     <label>Property type<select name="type" required>
@@ -34,6 +34,9 @@
     <label>Your name<input name="seller_name" required placeholder="Your name" /></label>
     <label>Phone<input name="seller_phone" required placeholder="+254 700 000 000" /></label>
     <label>Coordinates<input name="coords" placeholder="Latitude, Longitude" /></label>
+    <label>Photos (you can select multiple):
+      <input type="file" name="photos" accept="image/*" multiple />
+    </label>
     <button type="submit" class="button button-primary">Submit listing</button>
   </form>
   <div id="post-property-message" class="form-message"></div>

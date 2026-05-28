@@ -1124,7 +1124,13 @@ def api_listing(listing_id):
 
 @app.route("/api/post-listing", methods=["POST"])
 def api_post_listing():
-    data = request.get_json() or {}
+    # Accept both JSON and multipart form
+    if request.content_type and request.content_type.startswith("multipart/form-data"):
+        data = request.form
+        files = request.files.getlist("photos")
+    else:
+        data = request.get_json() or {}
+        files = []
     if not check_csrf():
         return jsonify({"status": "error", "message": "Invalid CSRF token."}), 400
     title = data.get("title", "").strip()
@@ -1136,7 +1142,19 @@ def api_post_listing():
     seller_name = data.get("seller_name", "").strip()
     seller_phone = data.get("seller_phone", "").strip()
     coords = data.get("coords") or {}
-    images = data.get("images") or []
+    images = []
+    # Handle file uploads
+    upload_folder = os.path.join("public", "uploads")
+    os.makedirs(upload_folder, exist_ok=True)
+    for file in files:
+        if file and file.filename:
+            ext = os.path.splitext(file.filename)[1].lower()
+            if ext in [".jpg", ".jpeg", ".png", ".gif", ".webp"]:
+                unique_name = f"{uuid.uuid4().hex}{ext}"
+                save_path = os.path.join(upload_folder, unique_name)
+                file.save(save_path)
+                url = f"/public/uploads/{unique_name}"
+                images.append(url)
 
     if not title or not location or not property_type or not size or not price or not description or not seller_name or not seller_phone:
         return jsonify({"status": "error", "message": "All property fields are required."}), 400
@@ -1162,9 +1180,12 @@ def api_post_listing():
         "lat": coords.get("lat", 0.0),
         "lng": coords.get("lng", 0.0),
     }
-    listing.images = images if isinstance(images, list) and images else [
-        "https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1200&q=80",
-    ]
+    if images:
+        listing.images = images
+    else:
+        listing.images = [
+            "https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1200&q=80",
+        ]
     db.session.add(listing)
     db.session.commit()
 
