@@ -1,10 +1,15 @@
 import { Link } from 'react-router-dom';
 import { mockListings } from '../data/mockListings';
 import PropertyCard from '../components/PropertyCard';
+import TrustSection from '../components/TrustSection';
+import CTABlocks from '../components/CTABlocks';
+import BookSurveyCTA from '../components/BookSurveyCTA';
+import InstallmentSales from '../components/InstallmentSales';
 
 function Home() {
   return (
     <section className="space-y-16">
+      {/* Hero/Intro Section */}
       <div className="grid gap-10 lg:grid-cols-[1.3fr_0.9fr] lg:items-center">
         <div className="space-y-6">
           <span className="inline-flex rounded-full bg-sky-500/10 px-4 py-2 text-sm font-semibold text-sky-200">
@@ -49,6 +54,16 @@ function Home() {
           </div>
         </div>
       </div>
+
+
+      {/* Trust & Legitimacy Section */}
+      <TrustSection />
+
+      {/* Book Survey CTA Section */}
+      <BookSurveyCTA />
+
+      {/* Strong CTA Blocks */}
+      <CTABlocks />
 
       <div className="grid gap-8 rounded-[2rem] border border-slate-800 bg-slate-900/90 p-8 shadow-soft lg:grid-cols-3">
         <div>
@@ -122,6 +137,12 @@ function Home() {
           </Link>
         </div>
       </div>
+
+      {/* Installment Sales Section */}
+      <InstallmentSales />
+
+      {/* Map-Based Property Search Section */}
+      <MapPropertySearch />
 
       {/* Trending Locations */}
       <div className="space-y-6">

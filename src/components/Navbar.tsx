@@ -18,13 +18,13 @@ function Navbar() {
           <img src="/logo.svg" alt="Ardhi Plus logo" className="h-10 w-10" />
           Ardhi Plus
         </Link>
-        <nav className="hidden items-center gap-6 md:flex">
+        <nav className="hidden items-center gap-12 md:flex">
           {navItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                `text-sm font-medium transition ${isActive ? 'text-sky-300' : 'text-slate-300 hover:text-white'}`
+                `text-sm font-medium px-2 py-1 rounded transition ${isActive ? 'text-sky-300 bg-slate-800' : 'text-slate-300 hover:text-white hover:bg-slate-800'}`
               }
             >
               {item.label}

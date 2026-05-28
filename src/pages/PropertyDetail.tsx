@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import type { Listing } from '../data/mockListings';
+import DownloadReports from '../components/DownloadReports';
 
 function PropertyDetail() {
   const { id } = useParams();
@@ -138,6 +139,8 @@ function PropertyDetail() {
             </div>
           </div>
         </div>
+        {/* Downloadable Reports Section */}
+        <DownloadReports />
 
         <aside className="space-y-6">
           <div className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6 shadow-soft">
