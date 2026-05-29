@@ -1,0 +1,20 @@
+{% extends 'dashboard/base.html' %}
+
+{% block content %}
+<div class="card">
+    <h2>Edit Property</h2>
+    <form method="POST">
+        {% csrf_token %}
+        <input type="text" name="title" value="{{ property.title }}" placeholder="Title"><br><br>
+        <input type="text" name="location" value="{{ property.location }}" placeholder="Location"><br><br>
+        <input type="number" name="price" value="{{ property.price }}" placeholder="Price"><br><br>
+        <textarea name="description" placeholder="Description">{{ property.description }}</textarea><br><br>
+        <select name="status">
+            <option value="available" {% if property.status == 'available' %}selected{% endif %}>Available</option>
+            <option value="pending" {% if property.status == 'pending' %}selected{% endif %}>Pending</option>
+            <option value="sold" {% if property.status == 'sold' %}selected{% endif %}>Sold</option>
+        </select><br><br>
+        <button type="submit">Update Property</button>
+    </form>
+</div>
+{% endblock %}

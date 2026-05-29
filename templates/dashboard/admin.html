@@ -1,0 +1,15 @@
+{% extends 'dashboard/base.html' %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block content %}
+<div class="card">
+	<h2>Admin Overview</h2>
+	<p>Welcome to your control panel.</p>
+</div>
+<div class="card">
+	<h3>Quick Stats</h3>
+	<ul>
+		<li>Total Users: <b>{{ total_users }}</b></li>
+		<li>Total Properties: <b>{{ total_properties }}</b></li>
+	</ul>
+</div>
+{% endblock %}

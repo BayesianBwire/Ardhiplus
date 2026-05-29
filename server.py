@@ -1,3 +1,5 @@
+from functools import wraps
+from flask import abort
 from datetime import datetime, timedelta
 import json
 import re
@@ -80,49 +82,42 @@ _fernet = Fernet(app.config["MESSAGE_KEY"].encode())
 db = SQLAlchemy(app)
 
 
+
+import requests
+
 def send_email(to_email: str, subject: str, text_body: str, html_body: str | None = None) -> bool:
-    host = app.config.get("SMTP_HOST")
-    port = app.config.get("SMTP_PORT")
-    user = app.config.get("SMTP_USER")
-    password = app.config.get("SMTP_PASS")
-    sender = app.config.get("EMAIL_SENDER")
-
-    if not host or not user or not password:
-        app.logger.warning("SMTP not configured: host=%s user=%s pass=%s", host, user, "***" if password else None)
-        print("SMTP not configured; skipping sending email")
+    api_key = os.environ.get("RESEND_API_KEY")
+    sender = app.config.get("EMAIL_SENDER", "support@ardhiplus.co.ke")
+    if not api_key:
+        app.logger.error("RESEND_API_KEY not set. Cannot send email.")
         return False
 
-    app.logger.info("Sending email to %s via %s:%s from %s", to_email, host, port, sender)
-    msg = EmailMessage()
-    msg["From"] = sender
-    msg["To"] = to_email
-    msg["Subject"] = subject
-    msg.set_content(text_body)
+    url = "https://api.resend.com/emails"
+    payload = {
+        "from": sender,
+        "to": [to_email],
+        "subject": subject,
+        "text": text_body,
+    }
     if html_body:
-        msg.add_alternative(html_body, subtype="html")
+        payload["html"] = html_body
 
-    context = ssl.create_default_context()
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+
     try:
-        with smtplib.SMTP(host, port, timeout=10) as server:
-            app.logger.debug("Connected to SMTP server %s:%s", host, port)
-            server.starttls(context=context)
-            app.logger.debug("TLS handshake complete")
-            server.login(user, password)
-            app.logger.debug("Authenticated to SMTP as %s", user)
-            server.send_message(msg)
-        app.logger.info("Successfully sent email to %s", to_email)
-        return True
-    except smtplib.SMTPAuthenticationError as e:
-        app.logger.error("SMTP auth failed for user %s: %s", user, str(e))
-        print(f"SMTP auth failed: {e}")
-        return False
-    except smtplib.SMTPException as e:
-        app.logger.error("SMTP error sending to %s: %s", to_email, str(e))
-        print(f"SMTP error: {e}")
-        return False
+        app.logger.info(f"Sending email to {to_email} via Resend API from {sender}")
+        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        if response.status_code == 200:
+            app.logger.info(f"Successfully sent email to {to_email} via Resend API")
+            return True
+        else:
+            app.logger.error(f"Failed to send email to {to_email} via Resend API: {response.status_code} {response.text}")
+            return False
     except Exception as e:
-        app.logger.exception("Unexpected error sending email to %s", to_email)
-        print(f"Failed to send email to {to_email}: {e}")
+        app.logger.exception(f"Unexpected error sending email to {to_email} via Resend API: {e}")
         return False
 
 
@@ -1142,6 +1137,8 @@ def api_post_listing():
     seller_name = data.get("seller_name", "").strip()
     seller_phone = data.get("seller_phone", "").strip()
     coords = data.get("coords") or {}
+    if not isinstance(coords, dict):
+        coords = {}
     images = []
     # Handle file uploads
     upload_folder = os.path.join("public", "uploads")
@@ -1176,9 +1173,10 @@ def api_post_listing():
         seller_phone=seller_phone,
         seller_notes=data.get("seller_notes", "").strip() or "Pending survey verification and admin review.",
     )
+    # Coordinates are optional; default to 0.0 if missing
     listing.coords = {
-        "lat": coords.get("lat", 0.0),
-        "lng": coords.get("lng", 0.0),
+        "lat": float(coords.get("lat", 0.0)) if coords.get("lat") else 0.0,
+        "lng": float(coords.get("lng", 0.0)) if coords.get("lng") else 0.0,
     }
     if images:
         listing.images = images

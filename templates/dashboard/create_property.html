@@ -1,0 +1,20 @@
+{% extends 'dashboard/base.html' %}
+
+{% block content %}
+<div class="card">
+    <h2>Create Property</h2>
+    <form method="POST">
+        {% csrf_token %}
+        <input type="text" name="title" placeholder="Title"><br><br>
+        <input type="text" name="location" placeholder="Location"><br><br>
+        <input type="number" name="price" placeholder="Price"><br><br>
+        <textarea name="description" placeholder="Description"></textarea><br><br>
+        <select name="status">
+            <option value="available">Available</option>
+            <option value="pending">Pending</option>
+            <option value="sold">Sold</option>
+        </select><br><br>
+        <button type="submit">Save Property</button>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}Dashboard{% endblock %}</title>
+    <style>
+        body { margin: 0; font-family: Arial; display: flex; }
+        .sidebar { width: 220px; height: 100vh; background: #111; color: white; padding: 20px; }
+        .sidebar a { display: block; color: white; text-decoration: none; margin-bottom: 10px; }
+        .sidebar a:hover { background: #222; }
+        .topbar { width: 100%; background: #eee; padding: 10px 20px; }
+        .content { flex: 1; padding: 30px; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>Dashboard</h2>
+        <a href="/dashboard/admin/">Admin</a>
+        <a href="/dashboard/agent/">Agent</a>
+        <a href="/dashboard/surveyor/">Surveyor</a>
+        <a href="/dashboard/user/">User</a>
+        <a href="/logout">Logout</a>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;">
+        <div class="topbar">
+            Welcome, {{ g.user.name if g.user else '' }} ({{ g.user.role if g.user else '' }})
+        </div>
+        <div class="content">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+</body>
+</html>

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import AdminAnalyticsDashboard from '../components/AdminAnalyticsDashboard';
 
@@ -18,8 +19,16 @@ const statusColors = {
   rejected: 'bg-rose-700/20 text-rose-400',
 };
 
-export default function Admin() {
   const [active, setActive] = useState('dashboard');
+  const navigate = useNavigate();
+  // Replace this with your actual user fetching logic (context, API, etc.)
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+  useEffect(() => {
+    if (!user || user.role !== 'admin') {
+      navigate('/login'); // Or show a not authorized message
+    }
+  }, [user, navigate]);
 
   function renderSection() {
     switch (active) {
@@ -149,20 +158,25 @@ export default function Admin() {
     }
   }
 
+  // Example: Only show admin links. You can expand this for other roles.
+  const adminLinks = [
+    { key: 'dashboard', label: 'Dashboard' },
+    { key: 'listings', label: 'Listings' },
+    { key: 'users', label: 'Users' },
+    { key: 'verification', label: 'Verification' },
+    { key: 'survey', label: 'Survey Requests' },
+    { key: 'reports', label: 'Reports' },
+    { key: 'payments', label: 'Payments' },
+    { key: 'settings', label: 'Settings' },
+  ];
+
+  // You can add similar arrays for agent, broker, owner, etc.
+
   return (
     <AdminLayout>
       {/* Section switcher (simulate sidebar state) */}
       <div className="mb-8 flex flex-wrap gap-2">
-        {[
-          { key: 'dashboard', label: 'Dashboard' },
-          { key: 'listings', label: 'Listings' },
-          { key: 'users', label: 'Users' },
-          { key: 'verification', label: 'Verification' },
-          { key: 'survey', label: 'Survey Requests' },
-          { key: 'reports', label: 'Reports' },
-          { key: 'payments', label: 'Payments' },
-          { key: 'settings', label: 'Settings' },
-        ].map((s) => (
+        {user.role === 'admin' && adminLinks.map((s) => (
           <button
             key={s.key}
             onClick={() => setActive(s.key)}
@@ -171,6 +185,7 @@ export default function Admin() {
             {s.label}
           </button>
         ))}
+        {/* Example: Add agent/broker/owner links here if needed */}
       </div>
       {renderSection()}
     </AdminLayout>
