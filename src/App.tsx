@@ -20,6 +20,8 @@ import PostProperty from './pages/PostProperty';
 import FAQ from './pages/FAQ';
 import Privacy from './pages/Privacy';
 
+import VerifyEmail from './pages/VerifyEmail';
+
 function App() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -45,6 +47,7 @@ function App() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
         </Routes>
       </main>
       <Footer />
