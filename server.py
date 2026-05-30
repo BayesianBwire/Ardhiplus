@@ -238,7 +238,7 @@ class User(db.Model):
     password = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(50), nullable=False, default="broker")
     registered_at = db.Column(db.DateTime, default=datetime.utcnow)
-    email_verified = db.Column(db.Boolean, default=False)
+    # email_verified field removed
     temp_password = db.Column(db.String(255), nullable=True)
 
     def to_dict(self):
@@ -247,7 +247,6 @@ class User(db.Model):
             "name": self.name,
             "email": self.email,
             "role": self.role,
-            "verified": self.email_verified,
             "registered_at": self.registered_at.isoformat() + "Z",
         }
 
@@ -387,19 +386,6 @@ class PasswordResetToken(db.Model):
         }
 
 
-class EmailVerificationToken(db.Model):
-    token = db.Column(db.String(255), primary_key=True)
-    email = db.Column(db.String(255), nullable=False)
-    code = db.Column(db.String(50), nullable=False)
-    expires = db.Column(db.Float, nullable=False)
-
-    def to_dict(self):
-        return {
-            "token": self.token,
-            "email": self.email,
-            "code": self.code,
-            "expires": self.expires,
-        }
 
 
 class LoginThrottle(db.Model):
@@ -1279,7 +1265,9 @@ def api_register():
     if User.query.filter(db.func.lower(User.email) == email.lower()).first():
         return jsonify({"status": "error", "message": "Email already registered."}), 400
 
+    app.logger.debug(f"[REGISTER] Raw password: '{password}'")
     hashed = generate_password_hash(password)
+    app.logger.debug(f"[REGISTER] Hashed password: '{hashed}'")
     user = User(
         name=name,
         email=email,
@@ -1299,48 +1287,9 @@ def api_register():
     session.modified = True
     notify_login(user.id, "New registration and login completed.")
 
-    verification_token = secrets.token_urlsafe(24)
-    verification_code = secrets.token_hex(3).upper()
-    email_verification = EmailVerificationToken(
-        token=verification_token,
-        email=user.email,
-        code=verification_code,
-        expires=datetime.utcnow().timestamp() + 3600,
-    )
-    db.session.add(email_verification)
-    db.session.commit()
-    verification_link = url_for("verify_email_page", token=verification_token, _external=True)
-
-    # Send welcome + verification email (best-effort) and report status
-    sent = False
-    try:
-        sent = send_welcome_verification_email(user, verification_link, verification_code)
-    except Exception as e:
-        app.logger.exception("Unexpected error while sending verification email for %s", user.email)
-        sent = False
-
-    if not sent:
-        app.logger.warning("Verification email NOT sent for %s — check SMTP configuration.", user.email)
-        # In non-production environments include the verification link/code in the response to aid debugging
-        include_debug_link = os.environ.get("FLASK_ENV", "").lower() != "production"
-        resp = {
-            "status": "success",
-            "message": (
-                "Account created but verification email could not be sent. "
-                "Please contact support or verify your email using the link provided."
-            ),
-            "token": access_token,
-            "refresh_token": refresh_token,
-        }
-        if include_debug_link:
-            resp["verification_link"] = verification_link
-            resp["verification_code"] = verification_code
-
-        return jsonify(resp), 201
-
     return jsonify({
         "status": "success",
-        "message": "Account created successfully. A verification email has been sent.",
+        "message": "Account created successfully.",
         "token": access_token,
         "refresh_token": refresh_token,
     }), 201
@@ -1355,6 +1304,9 @@ def api_login():
     password = data.get("password", "").strip()
 
     user = User.query.filter(db.func.lower(User.email) == email.lower()).first()
+    app.logger.debug(f"[LOGIN] Raw password: '{password}'")
+    if user:
+        app.logger.debug(f"[LOGIN] Stored hash: '{user.password}'")
     # Check throttling
     throttle = LoginThrottle.query.get(email.lower())
     now_ts = datetime.utcnow().timestamp()
@@ -1379,8 +1331,7 @@ def api_login():
         db.session.delete(throttle)
         db.session.commit()
 
-    if not user.email_verified:
-        return jsonify({"status": "error", "message": "Please verify your email address before logging in."}), 403
+    # Email verification check removed; allow login without verification
 
     session.permanent = True
     session["user_id"] = user.id
