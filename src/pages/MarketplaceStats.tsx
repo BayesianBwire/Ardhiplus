@@ -1,15 +1,38 @@
-import { mockListings } from '../data/mockListings';
+import { useEffect, useState } from 'react';
 import { mockAgents } from '../data/mockAgents';
+import type { Listing } from '../data/mockListings';
 
 function MarketplaceStats() {
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/listings')
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('Unable to load marketplace stats');
+        }
+        return response.json();
+      })
+      .then((data) => {
+        setListings(data);
+      })
+      .catch(() => {
+        setListings([]);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
+
   // Calculate stats
-  const totalListings = mockListings.length;
-  const verifiedListings = mockListings.filter((l) => l.verified).length;
+  const totalListings = listings.length;
+  const verifiedListings = listings.filter((l) => l.verified).length;
   const unverifiedListings = totalListings - verifiedListings;
-  const avgPrice = mockListings.reduce((sum, l) => sum + l.priceNum, 0) / totalListings;
-  const totalValue = mockListings.reduce((sum, l) => sum + l.priceNum, 0);
+  const avgPrice = totalListings ? listings.reduce((sum, l) => sum + l.priceNum, 0) / totalListings : 0;
+  const totalValue = listings.reduce((sum, l) => sum + l.priceNum, 0);
   const totalAgents = mockAgents.length;
-  const totalBedrooms = mockListings.filter((l) => l.bedrooms).length;
+  const totalBedrooms = listings.filter((l) => l.bedrooms).length;
 
   // County breakdown
   const countyBreakdown = mockListings.reduce(
@@ -39,7 +62,7 @@ function MarketplaceStats() {
     '50M+': mockListings.filter((l) => l.priceNum > 50000000).length,
   };
 
-  const maxCount = Math.max(...Object.values(countyBreakdown), ...Object.values(typeBreakdown));
+  const maxCount = Math.max(1, ...Object.values(countyBreakdown), ...Object.values(typeBreakdown));
 
   return (
     <section className="space-y-8">

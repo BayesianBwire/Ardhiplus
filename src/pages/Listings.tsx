@@ -13,7 +13,7 @@ function Listings() {
   const [propertyType, setPropertyType] = useState<string>('All');
   const [county, setCounty] = useState<string>('All');
   const [bedrooms, setBedrooms] = useState<string>('All');
-  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [verifiedOnly, setVerifiedOnly] = useState(true);
   const [sortBy, setSortBy] = useState<string>('newest');
 
   // Fetch listings
@@ -220,7 +220,7 @@ function Listings() {
       {/* Results */}
       <div className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6 shadow-soft">
         <p className="text-sm text-slate-400">
-          Showing {filteredListings.length} of {listings.length} properties
+          Showing {filteredListings.length} verified properties by default. All users can browse freely, but you must login to request a listing.
         </p>
       </div>
 

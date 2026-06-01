@@ -8,6 +8,11 @@ function PropertyDetail() {
   const [listing, setListing] = useState<Listing | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    setIsLoggedIn(Boolean(localStorage.getItem('token')));
+  }, []);
 
   useEffect(() => {
     if (!id) {
@@ -146,31 +151,48 @@ function PropertyDetail() {
           <div className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6 shadow-soft">
             <h2 className="text-2xl font-semibold text-white">Quick actions</h2>
             <div className="mt-6 space-y-4">
-              {listing.sellerPhone ? (
-                <a
-                  href={`https://wa.me/${listing.sellerPhone.replace(/[^0-9]/g, '')}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block rounded-3xl bg-sky-500 px-5 py-3 text-center text-sm font-semibold text-slate-950 transition hover:bg-sky-400"
-                >
-                  WhatsApp seller
-                </a>
+              {isLoggedIn ? (
+                listing.sellerPhone ? (
+                  <a
+                    href={`https://wa.me/${listing.sellerPhone.replace(/[^0-9]/g, '')}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block rounded-3xl bg-sky-500 px-5 py-3 text-center text-sm font-semibold text-slate-950 transition hover:bg-sky-400"
+                  >
+                    WhatsApp seller
+                  </a>
+                ) : (
+                  <div className="block rounded-3xl border border-slate-700 px-5 py-3 text-center text-sm text-slate-400">
+                    Seller contact pending admin review
+                  </div>
+                )
               ) : (
-                <div className="block rounded-3xl border border-slate-700 px-5 py-3 text-center text-sm text-slate-400">
-                  Seller contact pending admin review
-                </div>
+                <Link
+                  to="/login"
+                  className="block rounded-3xl border border-rose-500 px-5 py-3 text-center text-sm text-rose-300 transition hover:bg-rose-500/10"
+                >
+                  Login to enquire
+                </Link>
               )}
               <Link
-                to="/contact"
-                className="block rounded-3xl border border-slate-700 px-5 py-3 text-center text-sm text-slate-200 transition hover:border-sky-400 hover:text-white"
+                to={isLoggedIn ? '/contact' : '/login'}
+                className={`block rounded-3xl px-5 py-3 text-center text-sm font-semibold transition ${
+                  isLoggedIn
+                    ? 'border border-slate-700 text-slate-200 hover:border-sky-400 hover:text-white'
+                    : 'border border-rose-500 text-rose-300 hover:bg-rose-500/10'
+                }`}
               >
-                Request admin contact
+                {isLoggedIn ? 'Request admin contact' : 'Login to request contact'}
               </Link>
               <Link
-                to="/services"
-                className="block rounded-3xl bg-slate-800 px-5 py-3 text-center text-sm text-slate-200 transition hover:border-slate-600 hover:text-white"
+                to={isLoggedIn ? '/services' : '/login'}
+                className={`block rounded-3xl px-5 py-3 text-center text-sm font-semibold transition ${
+                  isLoggedIn
+                    ? 'bg-slate-800 text-slate-200 hover:border-slate-600 hover:text-white'
+                    : 'border border-rose-500 text-rose-300 hover:bg-rose-500/10'
+                }`}
               >
-                Book survey visit
+                {isLoggedIn ? 'Book survey visit' : 'Login to book survey'}
               </Link>
             </div>
           </div>

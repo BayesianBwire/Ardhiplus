@@ -14,8 +14,8 @@ function Navbar() {
   return (
     <header className="border-b border-slate-800 bg-slate-950/95 backdrop-blur-md">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 sm:px-8">
-        <Link to="/" className="flex items-center gap-3 text-lg font-semibold text-sky-300">
-          <img src="/logo.svg" alt="Ardhi Plus logo" className="h-10 w-10" />
+        <Link to="/" className="flex items-center gap-3 text-base font-semibold text-sky-300">
+          <img src="/logo.svg" alt="Ardhi Plus logo" className="h-8 w-8" />
           Ardhi Plus
         </Link>
         <nav className="hidden items-center gap-12 md:flex">

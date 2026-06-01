@@ -72,29 +72,51 @@ function getSizeCategory(size) {
 function renderListings(listings) {
   const grid = document.querySelector("#listings-grid");
   if (!grid) return;
+  const isLoggedIn = Boolean(localStorage.getItem("token"));
+
+  if (!listings.length) {
+    grid.innerHTML = `
+      <div class="empty-state p-12 text-center text-slate-400">
+        <p class="text-lg font-semibold">No marketplace listings are available right now.</p>
+        <p class="mt-2 text-sm">Please check back later or submit a property to populate the marketplace.</p>
+      </div>
+    `;
+    return;
+  }
 
   grid.innerHTML = listings
     .map(
       (listing) => `
-      <article class="card">
+      <article class="card listing-card" data-id="${listing.id}">
         <p class="badge">${listing.badge}</p>
         <h3>${listing.title}</h3>
         <p>${listing.location}</p>
         <p class="listing-meta">${listing.size} · ${listing.price} · ${listing.type}</p>
         <p>${listing.description}</p>
         <div class="hero-actions">
-          <a class="button button-outline" href="/contact?listing=${encodeURIComponent(listing.title)}">Request connection</a>
-          <a class="button button-primary" href="/services">Request Survey</a>
+          <button class="button button-outline view-detail-button" type="button" data-id="${listing.id}">View details</button>
+          <a class="button button-primary" href="${isLoggedIn ? `/contact?listing=${encodeURIComponent(listing.title)}` : '/login'}">${isLoggedIn ? 'Request connection' : 'Login to request'}</a>
         </div>
       </article>
     `,
     )
     .join("");
+
+  attachListingDetailListeners();
 }
 
 function renderMap(listings) {
   const mapGrid = document.querySelector("#map-grid");
   if (!mapGrid) return;
+
+  if (!listings.length) {
+    mapGrid.innerHTML = `
+      <div class="map-empty p-12 text-center text-slate-400">
+        <p class="text-sm">No map markers available until listings are added.</p>
+      </div>
+    `;
+    return;
+  }
 
   const lats = listings.map((item) => item.coords.lat);
   const lngs = listings.map((item) => item.coords.lng);
@@ -114,6 +136,65 @@ function renderMap(listings) {
       `;
     })
     .join("");
+}
+
+function openListingDetail(listingId) {
+  const listing = marketplaceListings.find((item) => item.id === listingId);
+  const modal = document.querySelector('#listing-detail-modal');
+  const content = document.querySelector('#listing-detail-modal-content');
+  if (!listing || !modal || !content) return;
+
+  content.innerHTML = `
+    <div class="modal-card">
+      <button class="modal-close" type="button" aria-label="Close details">×</button>
+      <div class="modal-card-body">
+        <div>
+          <p class="badge">${listing.badge}</p>
+          <h2>${listing.title}</h2>
+          <p class="text-slate-400">${listing.location}</p>
+          <p class="listing-meta">${listing.size} · ${listing.price} · ${listing.type}</p>
+          <p class="mt-4 text-slate-300">${listing.description}</p>
+          <ul class="detail-list">
+            <li><strong>Bedrooms:</strong> ${listing.bedrooms || 'N/A'}</li>
+            <li><strong>Bathrooms:</strong> ${listing.bathrooms || 'N/A'}</li>
+            <li><strong>Verified:</strong> ${listing.verified ? 'Yes' : 'Pending'}</li>
+            <li><strong>Listed:</strong> ${listing.created_at || 'Unknown'}</li>
+          </ul>
+        </div>
+        <div class="modal-actions">
+          <a class="button button-primary" href="${localStorage.getItem('token') ? '/services' : '/login'}">${localStorage.getItem('token') ? 'Request survey' : 'Login to request'}</a>
+          <button class="button button-outline close-modal-button" type="button">Close</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  modal.classList.remove('hidden');
+  modal.querySelector('.modal-close')?.addEventListener('click', closeListingDetail);
+  modal.querySelector('.close-modal-button')?.addEventListener('click', closeListingDetail);
+}
+
+function closeListingDetail() {
+  const modal = document.querySelector('#listing-detail-modal');
+  if (!modal) return;
+  modal.classList.add('hidden');
+  modal.querySelector('#listing-detail-modal-content').innerHTML = '';
+}
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    closeListingDetail();
+  }
+});
+
+function attachListingDetailListeners() {
+  document.querySelectorAll('.view-detail-button').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const id = Number((event.currentTarget).getAttribute('data-id'));
+      openListingDetail(id);
+    });
+  });
 }
 
 function applyMarketplaceFilters() {
@@ -214,11 +295,19 @@ async function handleForm(formId, apiPath, messageSelector, payloadMapper) {
       if (formId === "register-form" || formId === "connection-form") {
         form.reset();
       }
-      // On successful registration, show verification message; on login, go to dashboard
-      if (formId === "register-form") {
+      // On successful login, store user data and token in localStorage for React components
+      if (formId === "login-form") {
+        localStorage.setItem("token", result.token);
+        localStorage.setItem("user", JSON.stringify({
+          id: result.id,
+          name: result.name,
+          role: result.role,
+          email: result.email
+        }));
+        const redirectUrl = result.role && ["admin", "superadmin"].includes(result.role) ? "/ardhimwenyewe" : "/dashboard";
+        setTimeout(() => (window.location.href = redirectUrl), 500);
+      } else if (formId === "register-form") {
         setTimeout(() => (window.location.href = "/login"), 2000);
-      } else if (formId === "login-form") {
-        setTimeout(() => (window.location.href = "/dashboard"), 500);
       }
     }
   });

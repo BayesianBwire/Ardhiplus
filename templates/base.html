@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="/static/css/styles.css" />
   </head>
   <body data-page="{{ page|default('') }}">
+    {% if page != 'admin' %}
     <header class="site-header">
       <div class="site-nav container">
         <a class="brand" href="/">
@@ -40,9 +41,11 @@
         </div>
       </div>
     </header>
+    {% endif %}
 
     <main class="container page-content">{% block content %}{% endblock %}</main>
 
+    {% if page != 'admin' %}
     <footer class="site-footer">
       <div class="container footer-grid">
         <div>
@@ -74,9 +77,12 @@
         </div>
       </div>
       <a href="https://wa.me/254746554758?text=Hello%2C%20I%20am%20interested%20in%20your%20property%20listing" class="whatsapp-float" target="_blank" title="Chat on WhatsApp">
-        <img src="/static/img/whatsapp.svg" alt="WhatsApp" style="width:56px;height:56px;">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.472-.148-.672.149-.198.297-.768.967-.942 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.52.149-.173.198-.298.298-.497.099-.198.05-.372-.025-.521-.075-.149-.672-1.611-.921-2.206-.242-.579-.487-.5-.672-.51-.173-.009-.372-.01-.57-.01-.198 0-.52.074-.792.372-.273.297-1.04 1.015-1.04 2.476 0 1.46 1.065 2.875 1.213 3.074.149.198 2.095 3.2 5.076 4.487.709.306 1.262.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.007-1.413.248-.694.248-1.289.173-1.413-.074-.124-.273-.198-.57-.347m-5.421 7.381h-.001a9.87 9.87 0 0 1-5.031-1.37l-.361-.214-3.01.789.805-2.944-.235-.377a9.86 9.86 0 0 1-1.51-5.513 9.918 9.918 0 0 1 9.96-9.964c2.65 0 5.144 1.032 7.015 2.903a9.923 9.923 0 0 1 2.9 7.06 9.886 9.886 0 0 1-9.924 9.956m8.413-18.297A11.77 11.77 0 0 0 12.048.029C5.404.029.149 5.284.149 11.93c0 2.103.549 4.156 1.595 5.968L.001 24l6.32-1.66a11.86 11.86 0 0 0 5.727 1.47h.004c6.645 0 11.9-5.255 11.9-11.9 0-3.179-1.24-6.159-3.478-8.397"/>
+        </svg>
       </a>
     </footer>
+    {% endif %}
     <style>
       .footer-nav-horizontal {
         display: flex;

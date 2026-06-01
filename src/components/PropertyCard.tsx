@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { useFavorites } from '../hooks/useFavorites';
 import type { Listing } from '../data/mockListings';
 
@@ -9,11 +10,22 @@ interface PropertyCardProps {
 function PropertyCard({ listing }: PropertyCardProps) {
   const { isFavorite, toggleFavorite } = useFavorites();
   const isFav = isFavorite(listing.id);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    setIsLoggedIn(Boolean(localStorage.getItem('token')));
+  }, []);
 
   return (
-    <article className="group overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/90 shadow-soft transition hover:-translate-y-1 hover:border-sky-500">
-      <div className="relative h-48 overflow-hidden bg-slate-800">
-        {listing.images[0] ? (
+    <article className="relative group overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/90 shadow-soft transition hover:-translate-y-1 hover:border-sky-500">
+      <Link
+        to={`/property/${listing.id}`}
+        className="absolute inset-0 z-0 bg-transparent"
+        aria-label={`View details for ${listing.title}`}
+      />
+      <div className="relative z-10">
+        <div className="relative h-48 overflow-hidden bg-slate-800">
+          {listing.images[0] ? (
           <img
             src={listing.images[0]}
             alt={listing.title}
@@ -59,14 +71,24 @@ function PropertyCard({ listing }: PropertyCardProps) {
           >
             View details
           </Link>
-          <Link
-            to="/services"
-            className="rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-200 transition hover:border-sky-400 hover:text-white"
-          >
-            Request survey
-          </Link>
+          {isLoggedIn ? (
+            <Link
+              to="/services"
+              className="rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-200 transition hover:border-sky-400 hover:text-white"
+            >
+              Request survey
+            </Link>
+          ) : (
+            <Link
+              to="/login"
+              className="rounded-full border border-rose-500 px-4 py-2 text-sm text-rose-300 transition hover:bg-rose-500/10"
+            >
+              Login to request
+            </Link>
+          )}
         </div>
       </div>
+    </div>
     </article>
   );
 }

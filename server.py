@@ -18,6 +18,7 @@ from flask_socketio import SocketIO, disconnect, emit
 from passlib.hash import bcrypt as passlib_bcrypt
 from sqlalchemy.exc import SQLAlchemyError
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 from dotenv import load_dotenv
 import smtplib
 import ssl
@@ -25,14 +26,27 @@ from email.message import EmailMessage
 
 app = Flask(__name__)
 app.config["JSON_SORT_KEYS"] = False
-# Prefer an environment-provided database URL (e.g. for production). Fall back
-# to a local SQLite file for safe development/testing to avoid attempting a
-# remote Postgres connection on machines without network/DNS access.
-app.config["SQLALCHEMY_DATABASE_URI"] = (
-    os.environ.get("SQLALCHEMY_DATABASE_URI")
-    or os.environ.get("DATABASE_URL")
-    or "sqlite:///dev.db"
-)
+
+# Load .env into environment for local development
+load_dotenv()
+
+# Prefer an environment-provided database URL (e.g. for production).
+# Fall back to a local SQLite file for safe development/testing if the
+# configured Postgres database is not reachable.
+def resolve_database_uri():
+    uri = os.environ.get("SQLALCHEMY_DATABASE_URI") or os.environ.get("DATABASE_URL")
+    if uri and uri.startswith("postgresql"):
+        try:
+            import psycopg2
+            conn = psycopg2.connect(uri, connect_timeout=5)
+            conn.close()
+        except Exception as exc:
+            print(f"Warning: PostgreSQL database unreachable ({exc}). Falling back to local SQLite.")
+            uri = None
+    return uri or "sqlite:///dev.db"
+
+app.config["SQLALCHEMY_DATABASE_URI"] = resolve_database_uri()
+print("Using database:", app.config["SQLALCHEMY_DATABASE_URI"])
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 # Configure SQLAlchemy engine options for better connection pooling and stability
 # Only apply PostgreSQL-specific options when using PostgreSQL
@@ -50,11 +64,8 @@ if app.config["SQLALCHEMY_DATABASE_URI"].startswith("postgresql"):
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = engine_options
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-secret-key-change-me")
 app.config["JWT_SECRET"] = os.environ.get("JWT_SECRET", "dev-jwt-secret-change-me")
-app.config["PERMANENT_SESSION_LIFETIME"] = int(os.environ.get("SESSION_LIFETIME_SECONDS", 3600 * 2))
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(seconds=int(os.environ.get("SESSION_LIFETIME_SECONDS", 3600 * 2)))
 app.config["MESSAGE_KEY"] = os.environ.get("MESSAGE_KEY") or Fernet.generate_key().decode()
-
-# Load .env into environment for local development
-load_dotenv()
 
 # SMTP configuration (used to send registration and password reset emails)
 app.config["SMTP_HOST"] = os.environ.get("SMTP_HOST")
@@ -80,7 +91,7 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 _fernet = Fernet(app.config["MESSAGE_KEY"].encode())
 
 db = SQLAlchemy(app)
-
+migrate = Migrate(app, db)
 
 
 import requests
@@ -560,7 +571,22 @@ def seed_initial_data():
 
 def init_db():
     db.create_all()
-    seed_initial_data()
+    # Sample seed disabled so the marketplace shows only real listings.
+    # seed_initial_data()
+
+
+def is_sample_listing(listing):
+    sample_titles = {
+        "Prime Residential Plot",
+        "Commercial Land Parcel",
+        "Greenfield Acreage",
+    }
+    sample_emails = {
+        "seller1@ardhiplus.co.ke",
+        "seller2@ardhiplus.co.ke",
+        "seller3@ardhiplus.co.ke",
+    }
+    return listing.title in sample_titles and listing.seller_email in sample_emails
 
 
 def is_strong_password(password):
@@ -574,12 +600,17 @@ def is_strong_password(password):
 @app.before_request
 def load_current_user():
     g.user = None
+    if is_session_expired():
+        session.clear()
     user_id = session.get("user_id")
     if user_id:
         try:
             g.user = User.query.get(int(user_id))
         except Exception:
             g.user = None
+
+    if g.user:
+        session["last_active"] = datetime.utcnow().timestamp()
 
     # ensure a CSRF token exists in session for forms/JS
     if "csrf_token" not in session:
@@ -672,6 +703,21 @@ def verify_jwt(token, expected_type=None):
         return None
 
 
+def is_session_expired():
+    if not session.get("user_id"):
+        return False
+    last_active = session.get("last_active")
+    if not last_active:
+        return False
+    lifetime = app.permanent_session_lifetime
+    lifetime_seconds = lifetime.total_seconds() if hasattr(lifetime, "total_seconds") else int(lifetime)
+    try:
+        last_active_ts = float(last_active)
+    except (TypeError, ValueError):
+        return False
+    return datetime.utcnow().timestamp() - last_active_ts > lifetime_seconds
+
+
 def log_action(user_id, action, details=None):
     try:
         audit = AuditLog(user_id=user_id, action=action, ip=request.remote_addr, details=details)
@@ -761,6 +807,30 @@ def admin_required(f):
         if not user or not has_permission(user, "admin:access"):
             return jsonify({"status": "error", "message": "Admin access required."}), 403
         request.jwt_payload = payload
+        return f(*args, **kwargs)
+
+    return wrapper
+
+
+def admin_page_required(f):
+    from functools import wraps
+
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not getattr(g, "user", None) or getattr(g.user, "role", None) not in ("admin", "superadmin"):
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+
+    return wrapper
+
+
+def login_required(f):
+    from functools import wraps
+
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not getattr(g, "user", None):
+            return redirect(url_for("login"))
         return f(*args, **kwargs)
 
     return wrapper
@@ -920,6 +990,7 @@ def register():
 
 
 @app.route("/dashboard")
+@login_required
 def dashboard():
     return render_template("dashboard.html", page="dashboard")
 
@@ -930,19 +1001,21 @@ def post_property():
 
 
 @app.route("/ardhimwenyewe")
+@admin_page_required
 def hidden_admin():
-    pending_listings = Listing.query.filter_by(verified=False).all()
+    # Superuser admin panel dedicated to site management and approval tasks.
     return render_template(
         "admin.html",
-        pending=[listing.to_dict() for listing in pending_listings],
-        interest_requests=[item.to_dict() for item in InterestRequest.query.order_by(InterestRequest.requested_at.desc()).all()],
-        reports=[item.to_dict() for item in Report.query.order_by(Report.reported_at.desc()).all()],
         page="admin",
+        pending=[],
+        interest_requests=[],
+        reports=[],
     )
 
 
 @app.route("/admin")
-def admin_redirect():
+def admin_dashboard():
+    # Alias for /ardhimwenyewe - redirect to the dedicated admin route
     return redirect(url_for("hidden_admin"))
 
 
@@ -1077,6 +1150,8 @@ def api_reset_password():
 def api_listings():
     visible_listings = []
     for listing in Listing.query.order_by(Listing.created_at.desc()).all():
+        if is_sample_listing(listing):
+            continue
         visible_copy = listing.to_dict()
         for key in ("seller_name", "seller_email", "seller_phone", "seller_notes"):
             visible_copy.pop(key, None)
@@ -1284,6 +1359,7 @@ def api_register():
 
     session.permanent = True
     session["user_id"] = user.id
+    session["last_active"] = datetime.utcnow().timestamp()
     session.modified = True
     notify_login(user.id, "New registration and login completed.")
 
@@ -1335,6 +1411,7 @@ def api_login():
 
     session.permanent = True
     session["user_id"] = user.id
+    session["last_active"] = datetime.utcnow().timestamp()
     session.modified = True
     access_token = create_jwt(user.id)
     refresh_token = create_refresh_token(user.id)
@@ -1349,7 +1426,10 @@ def api_login():
     return jsonify({
         "status": "success",
         "message": message,
+        "id": user.id,
         "name": user.name,
+        "email": user.email,
+        "role": user.role,
         "token": access_token,
         "refresh_token": refresh_token,
     }), 200
@@ -1449,7 +1529,8 @@ def api_verify_listing():
 
 @app.route("/logout")
 def logout():
-    session.pop("user_id", None)
+    session.clear()
+    session.modified = True
     return redirect(url_for("home"))
 
 

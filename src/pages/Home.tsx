@@ -1,12 +1,35 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { mockListings } from '../data/mockListings';
-import PropertyCard from '../components/PropertyCard';
 import TrustSection from '../components/TrustSection';
 import CTABlocks from '../components/CTABlocks';
 import BookSurveyCTA from '../components/BookSurveyCTA';
 import InstallmentSales from '../components/InstallmentSales';
+import MapPropertySearch from '../components/MapPropertySearch';
+import type { Listing } from '../data/mockListings';
 
 function Home() {
+  const [listings, setListings] = useState<Listing[]>([]);
+
+  useEffect(() => {
+    fetch('/api/listings')
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('Unable to load listings');
+        }
+        return response.json();
+      })
+      .then((data) => {
+        setListings(data);
+      })
+      .catch(() => {
+        setListings([]);
+      });
+  }, []);
+
+  const verifiedListings = listings.filter((listing) => listing.verified);
+  const featuredListings = verifiedListings.slice(0, 3);
+  const hotListings = verifiedListings.slice(0, 4);
+
   return (
     <section className="space-y-16">
       {/* Hero/Intro Section */}
@@ -40,7 +63,7 @@ function Home() {
         <div className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-8 shadow-soft">
           <h2 className="text-xl font-semibold text-white">Featured verified listings</h2>
           <div className="mt-6 grid gap-4">
-            {mockListings.slice(0, 3).map((listing) => (
+            {featuredListings.map((listing) => (
               <div key={listing.id} className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5">
                 <p className="text-sm uppercase tracking-[0.25em] text-sky-300">{listing.location}</p>
                 <h3 className="mt-2 text-lg font-semibold text-white">{listing.title}</h3>
@@ -51,6 +74,11 @@ function Home() {
                 </div>
               </div>
             ))}
+            {!featuredListings.length && (
+              <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5 text-slate-400">
+                No featured verified listings are available at the moment.
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -103,30 +131,36 @@ function Home() {
           </p>
         </div>
         <div className="grid gap-6 lg:grid-cols-4">
-          {mockListings.slice(0, 4).map((listing) => (
-            <Link
-              key={listing.id}
-              to={`/property/${listing.id}`}
-              className="group rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6 shadow-soft transition hover:border-sky-500 hover:bg-slate-800"
-            >
-              <div className="overflow-hidden rounded-3xl bg-slate-800 mb-4">
-                <img src={listing.images[0]} alt={listing.title} className="h-40 w-full object-cover group-hover:scale-105 transition" />
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.25em] text-sky-300">{listing.county}</p>
-                    <h3 className="mt-1 text-lg font-semibold text-white group-hover:text-sky-300 transition">{listing.title}</h3>
-                  </div>
-                  {listing.verified && (
-                    <span className="inline-flex rounded-full bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-300">✓</span>
-                  )}
+          {hotListings.length ? (
+            hotListings.map((listing) => (
+              <Link
+                key={listing.id}
+                to={`/property/${listing.id}`}
+                className="group rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6 shadow-soft transition hover:border-sky-500 hover:bg-slate-800"
+              >
+                <div className="overflow-hidden rounded-3xl bg-slate-800 mb-4">
+                  <img src={listing.images[0]} alt={listing.title} className="h-40 w-full object-cover group-hover:scale-105 transition" />
                 </div>
-                <p className="text-2xl font-bold text-white">{listing.price}</p>
-                <p className="text-sm text-slate-400">{listing.size}</p>
-              </div>
-            </Link>
-          ))}
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.25em] text-sky-300">{listing.county}</p>
+                      <h3 className="mt-1 text-lg font-semibold text-white group-hover:text-sky-300 transition">{listing.title}</h3>
+                    </div>
+                    {listing.verified && (
+                      <span className="inline-flex rounded-full bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-300">✓</span>
+                    )}
+                  </div>
+                  <p className="text-2xl font-bold text-white">{listing.price}</p>
+                  <p className="text-sm text-slate-400">{listing.size}</p>
+                </div>
+              </Link>
+            ))
+          ) : (
+            <div className="col-span-full rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6 text-slate-400 shadow-soft">
+              No verified listings are available right now.
+            </div>
+          )}
         </div>
         <div className="text-center">
           <Link
