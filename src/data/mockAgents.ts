@@ -12,6 +12,8 @@ export interface Agent {
   image: string;
   bio: string;
   joinDate: string;
+  website?: string;
+  testimonials?: string[];
 }
 
 export const mockAgents: Agent[] = [
@@ -29,6 +31,8 @@ export const mockAgents: Agent[] = [
     image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=60',
     bio: 'Licensed agent with 8+ years experience in residential and land sales. Expert in Nairobi market.',
     joinDate: '2016',
+    website: 'https://ardhiplus.co.ke/agents/samuel',
+    testimonials: ['Helped sell my 2-acre plot in 2 weeks — reliable and transparent.']
   },
   {
     id: 2,
@@ -44,6 +48,8 @@ export const mockAgents: Agent[] = [
     image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=60',
     bio: 'Commercial property specialist. Trusted by major corporations for office and retail spaces.',
     joinDate: '2018',
+    website: 'https://nairobi-trading.example.com/grace',
+    testimonials: ['Great at matching commercial buyers to the right properties.']
   },
   {
     id: 3,
@@ -59,6 +65,8 @@ export const mockAgents: Agent[] = [
     image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=60',
     bio: 'Multi-specialized agent covering all property types. Known for fair deals and excellent customer service.',
     joinDate: '2017',
+    website: 'https://nairobiventures.example.com/david',
+    testimonials: ['Excellent communication and fair pricing guidance.']
   },
   {
     id: 4,
@@ -74,6 +82,8 @@ export const mockAgents: Agent[] = [
     image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=400&q=60',
     bio: 'Luxury property expert in Mombasa. Specializes in high-end beachfront and residential properties.',
     joinDate: '2019',
+    website: 'https://mombasalux.example.com/rose',
+    testimonials: ['Professional and attentive for luxury listings.']
   },
   {
     id: 5,
@@ -89,6 +99,8 @@ export const mockAgents: Agent[] = [
     image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=60',
     bio: 'Investment property specialist with focus on Karen and surrounding estates.',
     joinDate: '2015',
+    website: 'https://karenprops.example.com/james',
+    testimonials: ['Strong network for high-value buyers in Karen.']
   },
   {
     id: 6,
@@ -104,5 +116,7 @@ export const mockAgents: Agent[] = [
     image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=60',
     bio: 'Agricultural land specialist. Expert in Limuru and upcountry properties.',
     joinDate: '2020',
+    website: 'https://limuruland.example.com/amina',
+    testimonials: ['Knowledgeable about agricultural land and farming communities.']
   },
 ];

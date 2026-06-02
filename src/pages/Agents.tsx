@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { mockAgents, type Agent } from '../data/mockAgents';
+import QuickListModal from '../components/QuickListModal';
 
 function Agents() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSpecialization, setSelectedSpecialization] = useState('All');
   const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [showQuickList, setShowQuickList] = useState(false);
 
   // Get unique specializations
   const specializations = ['All', ...new Set(mockAgents.flatMap((a) => a.specialization))];
@@ -34,12 +36,12 @@ function Agents() {
               process simple and secure.
             </p>
             <div className="mt-4 flex flex-wrap gap-3">
-              <a
-                href="/post-property"
+              <button
+                onClick={() => setShowQuickList(true)}
                 className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400"
               >
                 List your land
-              </a>
+              </button>
               <a
                 href="/register?role=broker"
                 className="inline-flex items-center gap-2 rounded-full border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-300 hover:border-emerald-400"
@@ -185,6 +187,11 @@ function Agents() {
               {/* Bio */}
               <p className="text-sm text-slate-400 mb-4">{agent.bio}</p>
 
+              {/* Testimonial */}
+              {agent.testimonials && agent.testimonials.length > 0 && (
+                <blockquote className="mb-4 rounded-lg border-l-2 border-slate-800 pl-3 text-sm text-slate-300 italic">"{agent.testimonials[0]}"</blockquote>
+              )}
+
               {/* Stats */}
               <div className="grid grid-cols-3 gap-3 mb-4 text-center py-3 border-y border-slate-800">
                 <div>
@@ -236,6 +243,7 @@ function Agents() {
           <p className="text-slate-400">No agents found. Try adjusting your filters.</p>
         </div>
       )}
+      <QuickListModal open={showQuickList} onClose={() => setShowQuickList(false)} />
     </section>
   );
 }
