@@ -27,7 +27,10 @@ def serialize_value(v):
 
 def main():
     load_dotenv()
-    source_uri = os.environ.get("SOURCE_DB", "sqlite:///dev.db")
+    source_uri = os.environ.get("SOURCE_DB")
+    if not source_uri:
+        print("Error: SOURCE_DB environment variable is required (e.g. sqlite:///dev.db or postgresql://...)")
+        return
     outdir = Path("exports")
     outdir.mkdir(exist_ok=True)
 

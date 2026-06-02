@@ -192,6 +192,51 @@
   <div id="admin-message" class="form-message"></div>
 </section>
 
+<section class="admin-panel space-y-8">
+  <div class="admin-section">
+    <h2>Admin Management</h2>
+    <div id="admin-management">
+      <div class="card">
+        <h4>Existing Admins</h4>
+        <table id="admins-table" class="table">
+          <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h4>Add Admin</h4>
+        <form id="add-admin-form">
+          <label>Name<br><input type="text" name="name" required></label>
+          <label>Email<br><input type="email" name="email" required></label>
+          <label>Role<br>
+            <select name="role">
+              <option value="admin">Admin</option>
+              <option value="manager">Manager</option>
+              <option value="sec">Secretary</option>
+              <option value="treasurer">Treasurer</option>
+              <option value="tech">Tech</option>
+            </select>
+          </label>
+          <label>Password (optional)<br><input type="password" name="password"></label>
+          <button class="button" type="submit">Create Admin</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h4>Emergency Actions</h4>
+        {% if session.csrf_token %}
+        {% endif %}
+        {% if current_user and current_user.role == 'tech' %}
+        <button id="suspend-all" class="button button-danger">Suspend All (tech only)</button>
+        {% else %}
+        <p>Only users with the <strong>tech</strong> role can suspend all accounts.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+
 <script>
 // Load analytics data
 async function loadAnalytics() {
@@ -327,5 +372,65 @@ async function loadAnalytics() {
 
 // Load analytics when page loads
 document.addEventListener('DOMContentLoaded', loadAnalytics);
+// --- Admin management JS ---
+async function loadAdmins(){
+  try{
+    const res = await fetch('/api/admin/users');
+    const data = await res.json();
+    const tbody = document.querySelector('#admins-table tbody');
+    tbody.innerHTML = data.map(u => `
+      <tr data-id="${u.id}"><td>${u.id}</td><td>${u.name}</td><td>${u.email}</td>
+      <td><select class="role-select">
+        <option value="admin" ${u.role==='admin'?'selected':''}>admin</option>
+        <option value="manager" ${u.role==='manager'?'selected':''}>manager</option>
+        <option value="sec" ${u.role==='sec'?'selected':''}>sec</option>
+        <option value="treasurer" ${u.role==='treasurer'?'selected':''}>treasurer</option>
+        <option value="tech" ${u.role==='tech'?'selected':''}>tech</option>
+      </select></td>
+      <td><button class="button admin-update">Update</button> <button class="button button-danger admin-delete">Delete</button></td></tr>
+    `).join('');
+
+    // bind actions
+    document.querySelectorAll('.admin-delete').forEach(btn=>btn.addEventListener('click', async (e)=>{
+      const tr = e.target.closest('tr'); const id = tr.dataset.id;
+      if(!confirm('Delete admin id '+id+'?')) return;
+      const resp = await fetch('/api/admin/users/'+id, {method:'DELETE', headers:{'X-CSRF-Token': sessionStorage.getItem('csrf')||''}});
+      const j = await resp.json();
+      if(j.status==='ok') loadAdmins(); else alert(j.message||'Failed');
+    }));
+
+    document.querySelectorAll('.admin-update').forEach(btn=>btn.addEventListener('click', async (e)=>{
+      const tr = e.target.closest('tr'); const id = tr.dataset.id; const role = tr.querySelector('.role-select').value;
+      const resp = await fetch('/api/admin/users/'+id, {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRF-Token': sessionStorage.getItem('csrf')||''}, body:JSON.stringify({role})});
+      const j = await resp.json();
+      if(j.status==='ok') loadAdmins(); else alert(j.message||'Failed');
+    }));
+  }catch(err){console.error('loadAdmins',err)}
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  // store CSRF in sessionStorage for fetch calls
+  try{ sessionStorage.setItem('csrf', '{{ session.csrf_token }}') }catch(e){}
+  const form = document.getElementById('add-admin-form');
+  if(form) form.addEventListener('submit', async (ev)=>{
+    ev.preventDefault();
+    const fd = new FormData(form);
+    const payload = {name: fd.get('name'), email: fd.get('email'), role: fd.get('role'), password: fd.get('password')};
+    const resp = await fetch('/api/admin/users', {method:'POST', headers:{'Content-Type':'application/json','X-CSRF-Token': sessionStorage.getItem('csrf')||''}, body:JSON.stringify(payload)});
+    const j = await resp.json();
+    if(j.status==='ok'){alert('Admin created'); form.reset(); loadAdmins()} else {alert(j.message||'Failed')}
+  });
+
+  const suspendBtn = document.getElementById('suspend-all');
+  if(suspendBtn) suspendBtn.addEventListener('click', async ()=>{
+    if(!confirm('Confirm suspend all users?')) return;
+    const resp = await fetch('/api/admin/suspend_all', {method:'POST', headers:{'Content-Type':'application/json','X-CSRF-Token': sessionStorage.getItem('csrf')||''}, body:JSON.stringify({reason:'manual suspend'})});
+    const j = await resp.json();
+    if(j.status==='ok') alert('Suspended'); else alert(j.message||'Failed');
+  });
+
+  // initial load
+  loadAdmins();
+});
 </script>
 {% endblock %}

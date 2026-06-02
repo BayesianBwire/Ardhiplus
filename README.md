@@ -22,22 +22,17 @@ py server.py
 
 Open http://127.0.0.1:5000 in your browser.
 
-## Local development database
+## Database configuration
 
-- By default the app will use the `SQLALCHEMY_DATABASE_URI` environment variable if set. If not set it falls back to a local SQLite file `dev.db` to avoid attempting a remote connection during development.
-- Copy [.env.example](.env.example) to `.env` and set `SQLALCHEMY_DATABASE_URI` when you want to use a remote Postgres/Supabase instance.
+- The application requires a Postgres database (for example Supabase) in deployment. Set
+	`SQLALCHEMY_DATABASE_URI` (or `DATABASE_URL`) to your Postgres connection string before
+	starting the app. The app will validate connectivity to the configured Postgres instance
+	on startup and refuse to start if the database is unreachable.
 
 PowerShell example (set and run):
 
 ```powershell
 setx SQLALCHEMY_DATABASE_URI "postgresql://user:pass@host:port/dbname"
-py server.py
-```
-
-CMD example (temporary for session):
-
-```cmd
-set SQLALCHEMY_DATABASE_URI=sqlite:///dev.db
 py server.py
 ```
 

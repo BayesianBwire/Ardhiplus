@@ -19,7 +19,7 @@ except Exception:
 
 DB_URL = os.environ.get("DATABASE_URL") or os.environ.get("SQLALCHEMY_DATABASE_URI")
 if not DB_URL:
-    DB_URL = input("Enter your DATABASE_URL (or path to sqlite file like sqlite:///dev.db): ").strip()
+    DB_URL = input("Enter your DATABASE_URL (Postgres only, e.g. postgresql://...): ").strip()
 
 email = os.environ.get("SUPERUSER_EMAIL", "daudi@ardhiplus.co.ke")
 password = os.environ.get("SUPERUSER_PASSWORD", "Daudi254!")
@@ -29,19 +29,7 @@ hashed = generate_password_hash(password)
 print(f"[INFO] Using email: {email}")
 print(f"[INFO] Generated password hash: {hashed[:32]}...")
 
-def update_sqlite(path: str):
-    import sqlite3
-    if path.startswith("sqlite:///"):
-        db_path = path.replace("sqlite:///", "")
-    else:
-        db_path = path
-    conn = sqlite3.connect(db_path)
-    cur = conn.cursor()
-    cur.execute("UPDATE \"user\" SET password = ? WHERE lower(email) = lower(?)", (hashed, email))
-    cur.execute("DELETE FROM login_throttle WHERE lower(email) = lower(?)", (email,))
-    conn.commit()
-    print(f"[OK] SQLite: updated user password and cleared throttle (rows changed: {conn.total_changes})")
-    conn.close()
+
 
 def update_postgres(url: str):
     try:
@@ -60,12 +48,10 @@ def update_postgres(url: str):
     print("[OK] Postgres: updated user password and cleared throttle.")
 
 
-if DB_URL.startswith("sqlite"):
-    update_sqlite(DB_URL)
-elif DB_URL.startswith("postgres") or DB_URL.startswith("postgresql"):
+if DB_URL.startswith("postgres") or DB_URL.startswith("postgresql"):
     update_postgres(DB_URL)
 else:
-    print("Unrecognized DB URL scheme. Please set DATABASE_URL to a Postgres or sqlite URL.")
+    print("Unrecognized DB URL scheme. Please set DATABASE_URL to a Postgres URL (postgresql://...) and try again.")
     sys.exit(1)
 
 print("Done. Restart your server and try logging in.")

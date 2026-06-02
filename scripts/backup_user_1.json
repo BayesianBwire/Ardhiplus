@@ -1,0 +1,120 @@
+{
+  "user": {
+    "id": 1,
+    "name": "David Ekaya",
+    "email": "davidodongoekaya@gmail.com",
+    "password": "scrypt:32768:8:1$hRWZnZUzfdBAt0am$6921ea135f21398a16e013ad93e7997acf81abdfe9a9df454cdb8c1ab71f7b1b37a398ae57d18f600cd5950cc991c9862dc01f333419ac3bfd97d94603437b61",
+    "role": "admin",
+    "registered_at": "2026-05-25 16:26:02.583535",
+    "temp_password": "Daudi254!"
+  },
+  "related": {
+    "password_reset_tokens": [
+      {
+        "token": "0O3-u6-CdTyrWLCfU8edSHHYhEFu69CY",
+        "email": "davidodongoekaya@gmail.com",
+        "temp_password": "d9-AomRoiMchfA",
+        "expires": 1779730018.33149
+      },
+      {
+        "token": "84rYsDOFDjXVRU0UyMyJpJqDd0b3TV-t",
+        "email": "davidodongoekaya@gmail.com",
+        "temp_password": "zmDeH0JneaiZNA",
+        "expires": 1779730030.4932
+      }
+    ],
+    "login_throttle": [],
+    "device_sessions": [],
+    "refresh_tokens": [
+      {
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiaWF0IjoxNzgwMTUxNTQyLCJleHAiOjE3ODA3NTYzNDIsImp0aSI6ImM0YzEwZTJhLWMzODAtNGU1NC1hZmZmLWFkYWIzMDA5ZjEyOCIsInR5cGUiOiJyZWZyZXNoIn0.cpSy2h8AFuNVxa6Vf2ghBX4nyz7OzF39DYbHHlt2_VA",
+        "user_id": 1,
+        "expires_at": "2026-06-06 17:32:22.424184",
+        "revoked": false
+      },
+      {
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiaWF0IjoxNzgwMTUxNTQyLCJleHAiOjE3ODA3NTYzNDIsImp0aSI6IjM2MzVmZWU5LTAxN2UtNDNiZC1iNzk1LWJkODhlMGYwZTNmYSIsInR5cGUiOiJyZWZyZXNoIn0.ikwyr0n3uTFnlWkrPhItwOPJD4hUNJURn2sYjDFeiWU",
+        "user_id": 1,
+        "expires_at": "2026-06-06 17:32:22.590583",
+        "revoked": false
+      },
+      {
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiaWF0IjoxNzgwMzE3ODY0LCJleHAiOjE3ODA5MjI2NjQsImp0aSI6IjI5Yzk1NjZmLWE5NGUtNDc1Yy1hNjE4LTE3NWIzNWU5NTAyYSIsInR5cGUiOiJyZWZyZXNoIn0.90lFUgQ8WXZiC5TEmF82S9FzNLpimjuVsKoYnoQbcmE",
+        "user_id": 1,
+        "expires_at": "2026-06-08 15:44:24.159234",
+        "revoked": false
+      },
+      {
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiaWF0IjoxNzgwMzE3ODc2LCJleHAiOjE3ODA5MjI2NzYsImp0aSI6IjYxY2JlNmI5LWY2YzAtNGI5Ny1hM2I2LTExNTA4ODk0YzM0NiIsInR5cGUiOiJyZWZyZXNoIn0.mCbN-ptBNh4qeILOkzf12YBG9DLT3lCnmvLWXYD15gQ",
+        "user_id": 1,
+        "expires_at": "2026-06-08 15:44:36.382153",
+        "revoked": false
+      },
+      {
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiaWF0IjoxNzgwMzIwMTYzLCJleHAiOjE3ODA5MjQ5NjMsImp0aSI6ImQ1Mzg2MDg2LTg3NzQtNDFhMC1hOWRjLTkwYmNiMjYzM2RkZiIsInR5cGUiOiJyZWZyZXNoIn0.PrXf1bnw635oUOOmon2KBMZDAqjYxbtyRChbsZ3W9ls",
+        "user_id": 1,
+        "expires_at": "2026-06-08 16:22:43.999089",
+        "revoked": false
+      },
+      {
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiaWF0IjoxNzgwMzI1NjY2LCJleHAiOjE3ODA5MzA0NjYsImp0aSI6IjE5NjYzZGU3LThkZmMtNDEyOS04MGQ0LWZhODYxYzk1OWM4MCIsInR5cGUiOiJyZWZyZXNoIn0.lKx6L4Hhb4rUcmigXxlyUVNy7YW8xerf3x_MW1cTAjU",
+        "user_id": 1,
+        "expires_at": "2026-06-08 17:54:26.137741",
+        "revoked": false
+      }
+    ],
+    "login_notifications": [
+      {
+        "id": 5,
+        "user_id": 1,
+        "ip": "127.0.0.1",
+        "device_info": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.122.1 Chrome/142.0.7444.265 Electron/39.8.8 Safari/537.36",
+        "message": "Login successful from a recognized device.",
+        "created_at": "2026-05-30 17:32:24.707972"
+      },
+      {
+        "id": 6,
+        "user_id": 1,
+        "ip": "127.0.0.1",
+        "device_info": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.122.1 Chrome/142.0.7444.265 Electron/39.8.8 Safari/537.36",
+        "message": "Login successful from a recognized device.",
+        "created_at": "2026-05-30 17:32:25.712163"
+      },
+      {
+        "id": 7,
+        "user_id": 1,
+        "ip": "127.0.0.1",
+        "device_info": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.122.1 Chrome/142.0.7444.265 Electron/39.8.8 Safari/537.36",
+        "message": "Login successful from a recognized device.",
+        "created_at": "2026-06-01 15:44:29.680695"
+      },
+      {
+        "id": 8,
+        "user_id": 1,
+        "ip": "127.0.0.1",
+        "device_info": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.122.1 Chrome/142.0.7444.265 Electron/39.8.8 Safari/537.36",
+        "message": "Login successful from a recognized device.",
+        "created_at": "2026-06-01 15:44:42.808127"
+      },
+      {
+        "id": 9,
+        "user_id": 1,
+        "ip": "127.0.0.1",
+        "device_info": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.122.1 Chrome/142.0.7444.265 Electron/39.8.8 Safari/537.36",
+        "message": "Login successful from a recognized device.",
+        "created_at": "2026-06-01 16:23:01.476693"
+      },
+      {
+        "id": 10,
+        "user_id": 1,
+        "ip": "127.0.0.1",
+        "device_info": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.122.1 Chrome/142.0.7444.265 Electron/39.8.8 Safari/537.36",
+        "message": "Login successful from a recognized device.",
+        "created_at": "2026-06-01 17:54:29.371066"
+      }
+    ],
+    "messages": [],
+    "message_throttle": [],
+    "audit_logs": []
+  }
+}

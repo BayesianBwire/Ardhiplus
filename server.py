@@ -23,6 +23,7 @@ from dotenv import load_dotenv
 import smtplib
 import ssl
 from email.message import EmailMessage
+import sys
 
 app = Flask(__name__)
 app.config["JSON_SORT_KEYS"] = False
@@ -34,16 +35,28 @@ load_dotenv()
 # Fall back to a local SQLite file for safe development/testing if the
 # configured Postgres database is not reachable.
 def resolve_database_uri():
+    # Require an explicit Postgres URL in production. Normalize common schemes.
     uri = os.environ.get("SQLALCHEMY_DATABASE_URI") or os.environ.get("DATABASE_URL")
-    if uri and uri.startswith("postgresql"):
-        try:
-            import psycopg2
-            conn = psycopg2.connect(uri, connect_timeout=5)
-            conn.close()
-        except Exception as exc:
-            print(f"Warning: PostgreSQL database unreachable ({exc}). Falling back to local SQLite.")
-            uri = None
-    return uri or "sqlite:///dev.db"
+    if not uri:
+        raise RuntimeError("DATABASE_URL or SQLALCHEMY_DATABASE_URI must be set to a PostgreSQL URI")
+
+    # Accept legacy `postgres://` and normalize to `postgresql://`
+    if uri.startswith("postgres://"):
+        uri = "postgresql://" + uri[len("postgres://"):]
+
+    if not uri.startswith("postgresql://"):
+        raise RuntimeError("DATABASE_URL must start with postgresql://")
+
+    # Verify connectivity to the Postgres server (fail fast if unreachable)
+    try:
+        import psycopg2
+        conn = psycopg2.connect(dsn=uri, connect_timeout=5)
+        conn.close()
+    except Exception as exc:
+        print(f"Error: PostgreSQL database unreachable ({exc}). Exiting.")
+        sys.exit(1)
+
+    return uri
 
 app.config["SQLALCHEMY_DATABASE_URI"] = resolve_database_uri()
 print("Using database:", app.config["SQLALCHEMY_DATABASE_URI"])
@@ -1116,6 +1129,110 @@ def hidden_admin():
         interest_requests=[ir.to_dict() for ir in interest_requests],
         reports=[r.to_dict() for r in reports],
     )
+
+
+@app.route('/api/admin/users', methods=['GET'])
+@admin_page_required
+def api_admin_list_users():
+    # List users with administrative roles
+    admin_roles = ('admin', 'superadmin', 'manager', 'sec', 'treasurer', 'tech')
+    users = User.query.filter(User.role.in_(admin_roles)).order_by(User.id.asc()).all()
+    return jsonify([{"id": u.id, "name": u.name, "email": u.email, "role": u.role, "registered_at": u.registered_at.isoformat()} for u in users])
+
+
+@app.route('/api/admin/users', methods=['POST'])
+@admin_page_required
+def api_admin_create_user():
+    # Only admins or superadmins can create admin users
+    if getattr(g, 'user', None) is None or g.user.role not in ('admin', 'superadmin'):
+        return jsonify({"status": "error", "message": "Admin access required."}), 403
+    data = request.get_json() or {}
+    email = (data.get('email') or '').strip().lower()
+    name = (data.get('name') or '').strip()
+    role = (data.get('role') or 'admin').strip()
+    password = data.get('password') or None
+    if not email or not name:
+        return jsonify({"status": "error", "message": "Name and email are required."}), 400
+    if role not in ('admin', 'superadmin', 'manager', 'sec', 'treasurer', 'tech'):
+        return jsonify({"status": "error", "message": "Invalid role."}), 400
+    existing = User.query.filter(db.func.lower(User.email) == email.lower()).first()
+    if existing:
+        return jsonify({"status": "error", "message": "User already exists."}), 400
+    if not password:
+        password = secrets.token_urlsafe(12)
+    hashed = generate_password_hash(password)
+    user = User(name=name, email=email, password=hashed, role=role)
+    db.session.add(user)
+    db.session.commit()
+    # Do not return password in response
+    return jsonify({"status": "ok", "id": user.id, "email": user.email, "role": user.role})
+
+
+@app.route('/api/admin/users/<int:user_id>', methods=['PATCH'])
+@admin_page_required
+def api_admin_update_user(user_id: int):
+    # Only admins or superadmins can update roles
+    if getattr(g, 'user', None) is None or g.user.role not in ('admin', 'superadmin'):
+        return jsonify({"status": "error", "message": "Admin access required."}), 403
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"status": "error", "message": "User not found."}), 404
+    data = request.get_json() or {}
+    role = data.get('role')
+    if role:
+        if role not in ('admin', 'superadmin', 'manager', 'sec', 'treasurer', 'tech'):
+            return jsonify({"status": "error", "message": "Invalid role."}), 400
+        user.role = role
+    db.session.commit()
+    return jsonify({"status": "ok", "id": user.id, "role": user.role})
+
+
+@app.route('/api/admin/users/<int:user_id>', methods=['DELETE'])
+@admin_page_required
+def api_admin_delete_user(user_id: int):
+    # Only admins or superadmins can delete admin users
+    if getattr(g, 'user', None) is None or g.user.role not in ('admin', 'superadmin'):
+        return jsonify({"status": "error", "message": "Admin access required."}), 403
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"status": "error", "message": "User not found."}), 404
+    # Delete related tokens/sessions
+    try:
+        db.session.query(Message).filter((Message.sender_id == user.id) | (Message.recipient_id == user.id)).delete(synchronize_session=False)
+        db.session.query(RefreshToken).filter(RefreshToken.user_id == user.id).delete(synchronize_session=False)
+        db.session.query(DeviceSession).filter(DeviceSession.user_id == user.id).delete(synchronize_session=False)
+        db.session.query(LoginNotification).filter(LoginNotification.user_id == user.id).delete(synchronize_session=False)
+        db.session.query(MessageThrottle).filter(MessageThrottle.user_id == user.id).delete(synchronize_session=False)
+        db.session.query(AuditLog).filter(AuditLog.user_id == user.id).delete(synchronize_session=False)
+        db.session.query(PasswordResetToken).filter(PasswordResetToken.email == user.email).delete(synchronize_session=False)
+        db.session.query(LoginThrottle).filter(LoginThrottle.email == user.email).delete(synchronize_session=False)
+        db.session.delete(user)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": "Failed to delete user."}), 500
+    return jsonify({"status": "ok"})
+
+
+@app.route('/api/admin/suspend_all', methods=['POST'])
+@admin_page_required
+def api_admin_suspend_all():
+    # Only users with role 'tech' can trigger a full suspend action
+    if getattr(g, 'user', None) is None or g.user.role != 'tech':
+        return jsonify({"status": "error", "message": "Tech role required."}), 403
+    data = request.get_json() or {}
+    reason = data.get('reason', 'suspended by tech')
+    # Implement a simple global suspend by creating an IPBlock for 'GLOBAL' or setting a flag.
+    # Here we'll create a TokenBlocklist entry named 'GLOBAL_SUSPEND' and log an audit event.
+    try:
+        log_action(g.user.id, 'suspend_all', f'reason={reason}')
+        tb = TokenBlocklist(jti='GLOBAL_SUSPEND')
+        db.session.add(tb)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": "Failed to suspend."}), 500
+    return jsonify({"status": "ok"})
 
 
 @app.route("/admin")

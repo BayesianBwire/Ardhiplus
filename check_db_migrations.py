@@ -22,7 +22,8 @@ except Exception:
 
 DB_URL = os.environ.get("DATABASE_URL") or os.environ.get("SQLALCHEMY_DATABASE_URI")
 if not DB_URL:
-    DB_URL = input("Enter your DATABASE_URL (eg. postgresql://... or sqlite:///dev.db): ").strip()
+    print("Error: DATABASE_URL or SQLALCHEMY_DATABASE_URI must be set to a Postgres URL (postgresql://...).")
+    sys.exit(1)
 
 print(f"[INFO] Connecting to: {DB_URL}")
 
