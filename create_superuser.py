@@ -7,7 +7,7 @@ from werkzeug.security import generate_password_hash
 
 if __name__ == "__main__":
     with app.app_context():
-        email = "davidodongoekaya@gmail.com"
+        email = "daudi@ardhiplus.co.ke"
         password = "Daudi254!"
         name = "Adau Kadau"
         role = "admin"

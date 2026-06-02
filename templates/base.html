@@ -31,6 +31,11 @@
             {% endif %}
         </nav>
         <div class="nav-actions">
+          <button id="theme-toggle" class="button button-outline" type="button" aria-label="Toggle theme">
+            <span id="theme-icon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" fill="currentColor"></path></svg>
+            </span>
+          </button>
           {% if current_user %}
             <span class="nav-welcome">Welcome, {{ current_user.name }}</span>
             <a class="button button-outline" href="/logout">Logout</a>

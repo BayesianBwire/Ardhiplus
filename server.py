@@ -1000,16 +1000,121 @@ def post_property():
     return render_template("post_property.html", page="post-property")
 
 
+@app.route("/api/admin/analytics")
+@admin_page_required
+def api_admin_analytics():
+    # Get all analytics data for admin dashboard
+    pending_count = Listing.query.filter_by(verified=False).count()
+    verified_count = Listing.query.filter_by(verified=True).count()
+    survey_requests_count = SurveyRequest.query.count()
+    interest_requests_count = InterestRequest.query.count()
+    reports_count = Report.query.count()
+    users_count = User.query.count()
+    
+    # Get status breakdown for survey requests
+    survey_pending = SurveyRequest.query.filter_by(status="Pending").count()
+    survey_scheduled = SurveyRequest.query.filter_by(status="Scheduled").count()
+    survey_completed = SurveyRequest.query.filter_by(status="Completed").count()
+    
+    # Get status breakdown for interest requests
+    interest_pending = InterestRequest.query.filter_by(status="Pending").count()
+    interest_connected = InterestRequest.query.filter_by(status="Connected").count()
+    
+    # Get status breakdown for reports
+    reports_open = Report.query.filter_by(status="Open").count()
+    reports_resolved = Report.query.filter_by(status="Resolved").count()
+    
+    return jsonify({
+        "listings": {
+            "pending": pending_count,
+            "verified": verified_count,
+            "total": pending_count + verified_count,
+        },
+        "survey_requests": {
+            "total": survey_requests_count,
+            "pending": survey_pending,
+            "scheduled": survey_scheduled,
+            "completed": survey_completed,
+        },
+        "interest_requests": {
+            "total": interest_requests_count,
+            "pending": interest_pending,
+            "connected": interest_connected,
+        },
+        "reports": {
+            "total": reports_count,
+            "open": reports_open,
+            "resolved": reports_resolved,
+        },
+        "users": users_count,
+        "recommendations": generate_admin_recommendations(
+            pending_count, verified_count, survey_requests_count, 
+            reports_count, interest_requests_count
+        ),
+    })
+
+
+def generate_admin_recommendations(pending, verified, surveys, reports, interests):
+    """Generate actionable recommendations based on platform metrics."""
+    recommendations = []
+    
+    if pending > 10:
+        recommendations.append({
+            "priority": "high",
+            "title": "High pending listings backlog",
+            "message": f"You have {pending} listings awaiting verification. Consider prioritizing approvals.",
+        })
+    
+    if surveys > verified:
+        recommendations.append({
+            "priority": "medium",
+            "title": "Survey requests exceeding verified properties",
+            "message": f"Survey requests ({surveys}) are higher than verified listings ({verified}). Check survey scheduling.",
+        })
+    
+    if reports > 0:
+        recommendations.append({
+            "priority": "high",
+            "title": f"{reports} active reports need review",
+            "message": "Review reported issues to maintain platform trust and address fraud concerns.",
+        })
+    
+    if interests > 50:
+        recommendations.append({
+            "priority": "medium",
+            "title": "High buyer engagement",
+            "message": f"{interests} buyer interest requests show strong platform demand.",
+        })
+    
+    if verified > 0 and pending == 0:
+        recommendations.append({
+            "priority": "low",
+            "title": "All listings verified",
+            "message": "Great! All property listings are verified and approved.",
+        })
+    
+    return recommendations
+
+
 @app.route("/ardhimwenyewe")
 @admin_page_required
 def hidden_admin():
     # Superuser admin panel dedicated to site management and approval tasks.
+    # Query real data from database
+    pending = Listing.query.filter_by(verified=False).all()
+    verified = Listing.query.filter_by(verified=True).all()
+    survey_requests = SurveyRequest.query.all()
+    interest_requests = InterestRequest.query.all()
+    reports = Report.query.all()
+    
     return render_template(
         "admin.html",
         page="admin",
-        pending=[],
-        interest_requests=[],
-        reports=[],
+        pending=[listing.to_dict() for listing in pending],
+        verified=[listing.to_dict() for listing in verified],
+        survey_requests=[sr.to_dict() for sr in survey_requests],
+        interest_requests=[ir.to_dict() for ir in interest_requests],
+        reports=[r.to_dict() for r in reports],
     )
 
 
@@ -1138,7 +1243,8 @@ def api_reset_password():
     if not user:
         return jsonify({"status": "error", "message": "User not found."}), 404
 
-    user.password = new_password
+    # Store hashed password (do not save raw passwords)
+    user.password = generate_password_hash(new_password)
     user.temp_password = None
     db.session.delete(reset_data)
     db.session.commit()
@@ -1149,7 +1255,8 @@ def api_reset_password():
 @app.route("/api/listings")
 def api_listings():
     visible_listings = []
-    for listing in Listing.query.order_by(Listing.created_at.desc()).all():
+    # Only return verified listings to the public
+    for listing in Listing.query.filter_by(verified=True).order_by(Listing.created_at.desc()).all():
         if is_sample_listing(listing):
             continue
         visible_copy = listing.to_dict()
@@ -1382,14 +1489,24 @@ def api_login():
     user = User.query.filter(db.func.lower(User.email) == email.lower()).first()
     app.logger.debug(f"[LOGIN] Raw password: '{password}'")
     if user:
-        app.logger.debug(f"[LOGIN] Stored hash: '{user.password}'")
+        try:
+            app.logger.debug(f"[LOGIN] Found user: {user.email} hash-prefix: {str(user.password)[:16]}")
+        except Exception:
+            app.logger.debug("[LOGIN] Found user but failed to read password field")
     # Check throttling
     throttle = LoginThrottle.query.get(email.lower())
     now_ts = datetime.utcnow().timestamp()
     if throttle and throttle.suspended_until and throttle.suspended_until > now_ts:
         return jsonify({"status": "error", "message": "Account temporarily suspended due to multiple failed login attempts. Try again later."}), 429
 
-    if not user or (not check_password_hash(user.password, password) and user.temp_password != password):
+    # Evaluate password check and log result for debugging
+    pw_ok = False
+    try:
+        pw_ok = check_password_hash(user.password, password) if user else False
+    except Exception:
+        pw_ok = False
+    if not user or (not pw_ok and user.temp_password != password):
+        app.logger.debug(f"[LOGIN] password match: {pw_ok}, temp_match: {user.temp_password == password if user else False}")
         # increment throttle
         if not throttle:
             throttle = LoginThrottle(email=email.lower(), failed_count=1)

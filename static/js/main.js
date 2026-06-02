@@ -23,15 +23,52 @@ function setupPasswordToggles() {
     const input = container.querySelector("input");
     if (!input) return;
     button.addEventListener("click", () => {
+      const eyeSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 5c-7 0-11 7-11 7s4 7 11 7 11-7 11-7-4-7-11-7zm0 12a5 5 0 110-10 5 5 0 010 10z" fill="currentColor"/></svg>';
+      const eyeOffSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17.94 17.94A10.97 10.97 0 0112 19c-7 0-11-7-11-7 1.63-2.78 4.12-4.95 7.02-5.95M3 3l18 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       if (input.type === "password") {
         input.type = "text";
-        button.textContent = "Hide";
+        button.innerHTML = eyeOffSvg;
       } else {
         input.type = "password";
-        button.textContent = "Show";
+        button.innerHTML = eyeSvg;
       }
     });
   });
+}
+
+// Theme (dark/light) helpers
+function getStoredTheme() {
+  return localStorage.getItem('theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+}
+
+function applyTheme(theme) {
+  if (theme === 'light') {
+    document.body.classList.add('light');
+  } else {
+    document.body.classList.remove('light');
+  }
+  const btn = document.getElementById('theme-toggle');
+  const icon = document.getElementById('theme-icon');
+  const sunSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.76 4.84l-1.8-1.79L3.17 4.83l1.79 1.79 1.8-1.78zM1 13h3v-2H1v2zm10-9h2V1h-2v3zm7.03 2.04l1.79-1.79-1.79-1.79-1.79 1.79 1.79 1.79zM20 11v2h3v-2h-3zM12 7a5 5 0 100 10 5 5 0 000-10zm4.24 12.16l1.79 1.79 1.79-1.79-1.79-1.79-1.79 1.79zM4.83 19.78l1.79 1.79 1.79-1.79-1.79-1.79-1.79 1.79zM11 23h2v-3h-2v3z" fill="currentColor"/></svg>';
+  const moonSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" fill="currentColor"/></svg>';
+  if (icon) {
+    icon.innerHTML = theme === 'light' ? sunSvg : moonSvg;
+  } else if (btn) {
+    btn.innerHTML = theme === 'light' ? sunSvg : moonSvg;
+  }
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', theme === 'light' ? '#ffffff' : '#16a34a');
+  try { localStorage.setItem('theme', theme); } catch (e) {}
+}
+
+function setupThemeToggle() {
+  const toggle = document.getElementById('theme-toggle');
+  if (!toggle) return;
+  toggle.addEventListener('click', () => {
+    const current = document.body.classList.contains('light') ? 'light' : 'dark';
+    applyTheme(current === 'light' ? 'dark' : 'light');
+  });
+  applyTheme(getStoredTheme());
 }
 
 let marketplaceListings = [];
@@ -329,8 +366,7 @@ async function attachAdminActions() {
       const result = await response.json();
       showMessage(message, result.message, response.ok ? "success" : "error");
       if (response.ok) {
-        button.textContent = "Verified";
-        button.disabled = true;
+        setTimeout(() => location.reload(), 800);
       }
     });
   });
@@ -361,6 +397,7 @@ async function attachConnectActions() {
 function init() {
   const page = document.body.dataset.page;
   setupPasswordToggles();
+  setupThemeToggle();
 
   if (page === "listings") {
     loadListings().then(() => {

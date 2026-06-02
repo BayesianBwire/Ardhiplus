@@ -1,127 +1,68 @@
 {% extends "base.html" %}
 {% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <section class="section-heading">
-  <h1>Superuser Command Center</h1>
-  <p>Manage verified documents, property intelligence, fraud protection, live activity, and role tools for the entire platform.</p>
-  <p>Analytics and data views keep key platform metrics, verification pipelines, and approval workflows visible in real time.</p>
+  <h1>Admin Control Center</h1>
+  <p>Manage all requests, approvals, and site operations in one place.</p>
 </section>
 
-<section class="feature-grid">
-  <article class="card">
-    <h3>Analytics Platform</h3>
-    <p>Real-time approval funnel, verification trends, and operational health for active listings.</p>
-    <p><strong>Verified listings:</strong> 120</p>
-    <p><strong>Pending approvals:</strong> 8</p>
-    <p><strong>Buyer inquiries:</strong> 45</p>
-    <p><strong>Survey pipeline:</strong> 12 properties</p>
-    <p><strong>Response rate:</strong> 98%</p>
-  </article>
-  <article class="card">
-    <h3>Data View Platform</h3>
-    <p>Live property, request, report, and verification data in a compact admin dashboard.</p>
-    <div class="data-table-wrapper">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>Item</th>
-            <th>Status</th>
-            <th>Owner</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Verified listing queue</td>
-            <td>8 pending</td>
-            <td>Platform</td>
-          </tr>
-          <tr>
-            <td>Buyer connection requests</td>
-            <td>14 open</td>
-            <td>Sales</td>
-          </tr>
-          <tr>
-            <td>Survey requests</td>
-            <td>6 scheduling</td>
-            <td>Survey team</td>
-          </tr>
-          <tr>
-            <td>Fraud alerts</td>
-            <td>0 active</td>
-            <td>Security</td>
-          </tr>
-        </tbody>
-      </table>
+<!-- Analytics Dashboard -->
+<section class="analytics-dashboard space-y-8">
+  <!-- Key Metrics Cards -->
+  <div class="metrics-grid">
+    <div class="metric-card metric-pending">
+      <h3>Pending Listings</h3>
+      <p class="metric-value" id="pending-count">0</p>
+      <p class="metric-label">awaiting verification</p>
     </div>
-  </article>
-  <article class="card">
-    <h3>Document Center</h3>
-    <p>Secure storage | Expiry tracking | Ownership history</p>
-    <p><strong>Title Deed:</strong> Verified ✔</p>
-    <p><strong>ID Copy:</strong> Valid ✔</p>
-    <p><strong>Survey Map:</strong> Pending</p>
-    <p><strong>Approvals:</strong> Valid</p>
-    <p><strong>Agreements:</strong> Valid</p>
-  </article>
-  <article class="card">
-    <h3>Property Intelligence</h3>
-    <p><strong>Market Demand:</strong> High</p>
-    <p><strong>Nearby Land Pricing:</strong> KES 2.5M/acre</p>
-    <p><strong>Avg. Price Trend:</strong> +4% YoY</p>
-    <p><strong>Views vs Inquiries:</strong> 120 / 35</p>
-    <p><strong>Hot Locations:</strong> Naivasha, Syokimau</p>
-    <p><strong>Investment Potential:</strong> Excellent</p>
-  </article>
-  <article class="card">
-    <h3>Fraud Protection Center</h3>
-    <p><strong>Ownership mismatch alerts:</strong> None</p>
-    <p><strong>Duplicate listing detection:</strong> None</p>
-    <p><strong>Suspicious activity monitoring:</strong> Clear</p>
-    <p><strong>Verification scoring:</strong> High</p>
-    <p><strong>Identity validation:</strong> Verified</p>
-  </article>
-  <article class="card">
-    <h3>Live Activity</h3>
-    <p>Survey request submitted (2026-05-20)</p>
-    <p>Verification approved (2026-05-21)</p>
-    <p>Buyer requested viewing (2026-05-22)</p>
-    <p>Documents reviewed (2026-05-23)</p>
-    <p>Property marked verified (2026-05-24)</p>
-  </article>
-</section>
+    <div class="metric-card metric-verified">
+      <h3>Verified Listings</h3>
+      <p class="metric-value" id="verified-count">0</p>
+      <p class="metric-label">approved & live</p>
+    </div>
+    <div class="metric-card metric-surveys">
+      <h3>Survey Requests</h3>
+      <p class="metric-value" id="surveys-count">0</p>
+      <p class="metric-label">property assessments</p>
+    </div>
+    <div class="metric-card metric-reports">
+      <h3>Reports</h3>
+      <p class="metric-value" id="reports-count">0</p>
+      <p class="metric-label">issues to review</p>
+    </div>
+  </div>
 
-<section class="feature-grid">
-  <article class="card">
-    <h3>Role Tools</h3>
-    <p><strong>Agent:</strong> Manage clients, lead tracking, viewing schedules</p>
-    <p><strong>Broker:</strong> Team management, commissions, portfolio oversight</p>
-    <p><strong>Landowner:</strong> Verification tracking, ownership tools</p>
-  </article>
-  <article class="card">
-    <h3>Communication Center</h3>
-    <p>Buyer messages</p>
-    <p>Viewing scheduling</p>
-    <p>Verification discussions</p>
-    <p>Support tickets</p>
-    <p>Document requests</p>
-  </article>
-  <article class="card">
-    <h3>Trust Architecture</h3>
-    <p>Verification badges</p>
-    <p>Response rates</p>
-    <p>Verified identity</p>
-    <p>Verified phone</p>
-    <p>Verified email</p>
-    <p>Verified documents</p>
-    <p>Verified ownership</p>
-  </article>
-  <article class="card">
-    <h3>Dashboard Insights</h3>
-    <p>Your verified listings receive <strong>3x</strong> more inquiries.</p>
-    <p>Properties in <strong>Naivasha</strong> are trending this week.</p>
-    <p>Complete verification to improve buyer trust.</p>
-    <p><strong>Status Pipeline:</strong></p>
-    <p>Draft · Pending Verification · Survey Scheduled · Verified · Live · Buyer Interested · Negotiation · Sold</p>
-  </article>
+  <!-- Charts Section -->
+  <div class="charts-container">
+    <div class="chart-box">
+      <h3>Listing Status Distribution</h3>
+      <canvas id="listingChart"></canvas>
+    </div>
+    <div class="chart-box">
+      <h3>Survey Request Status</h3>
+      <canvas id="surveyChart"></canvas>
+    </div>
+  </div>
+
+  <div class="charts-container">
+    <div class="chart-box">
+      <h3>Interest Requests Status</h3>
+      <canvas id="interestChart"></canvas>
+    </div>
+    <div class="chart-box">
+      <h3>Report Resolution</h3>
+      <canvas id="reportChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Recommendations Section -->
+  <div class="recommendations-box">
+    <h3>📊 Platform Insights & Recommendations</h3>
+    <div id="recommendations-list" class="recommendations-list">
+      <p class="loading-text">Loading recommendations...</p>
+    </div>
+  </div>
 </section>
 
 <section class="admin-panel space-y-8">
@@ -154,7 +95,57 @@
   </div>
 
   <div class="admin-section">
-    <h2>Buyer connection requests</h2>
+    <h2>Verified Listings</h2>
+    {% if verified %}
+    <div class="pending-listings">
+      {% for listing in verified %}
+      <article class="card admin-card">
+        <div>
+          <p class="badge badge-verified">{{ listing.badge }}</p>
+          <h3>{{ listing.title }}</h3>
+          <p>{{ listing.location }}</p>
+          <p class="listing-meta">{{ listing.size }} · {{ listing.price }}</p>
+          <p>{{ listing.description }}</p>
+          <div class="admin-details">
+            <p><strong>Seller:</strong> {{ listing.seller_name }}</p>
+            <p><strong>Email:</strong> {{ listing.seller_email }}</p>
+            <p><strong>Phone:</strong> {{ listing.seller_phone }}</p>
+            <p><strong>Notes:</strong> {{ listing.seller_notes }}</p>
+          </div>
+        </div>
+        <p class="verified-status">✓ Approved and verified</p>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">No verified listings yet.</p>
+    {% endif %}
+  </div>
+
+  <div class="admin-section">
+    <h2>Survey Requests</h2>
+    {% if survey_requests %}
+    <div class="pending-listings">
+      {% for sr in survey_requests %}
+      <article class="card admin-card">
+        <div>
+          <h3>{{ sr.property_title }}</h3>
+          <p class="listing-meta">Status: {{ sr.status }}</p>
+          <p><strong>Owner:</strong> {{ sr.owner_name }}</p>
+          <p><strong>Email:</strong> {{ sr.email }}</p>
+          <p><strong>Location:</strong> {{ sr.location }}</p>
+          <p><strong>Requested:</strong> {{ sr.requested_at }}</p>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">No survey requests pending.</p>
+    {% endif %}
+  </div>
+
+  <div class="admin-section">
+    <h2>Buyer Interest Requests</h2>
     {% if interest_requests %}
     <div class="pending-listings">
       {% for request in interest_requests %}
@@ -168,19 +159,16 @@
           <p><strong>Message:</strong> {{ request.message }}</p>
           <p><strong>Requested:</strong> {{ request.requested_at }}</p>
         </div>
-        {% if request.status != "Connected" %}
-        <button class="button button-primary connect-button" data-id="{{ request.id }}">Connect parties</button>
-        {% endif %}
       </article>
       {% endfor %}
     </div>
     {% else %}
-    <p class="empty-state">No connection requests yet.</p>
+    <p class="empty-state">No interest requests yet.</p>
     {% endif %}
   </div>
 
   <div class="admin-section">
-    <h2>Reports</h2>
+    <h2>Reported Issues</h2>
     {% if reports %}
     <div class="pending-listings">
       {% for report in reports %}
@@ -197,10 +185,147 @@
       {% endfor %}
     </div>
     {% else %}
-    <p class="empty-state">No reports have been submitted.</p>
+    <p class="empty-state">No reports submitted.</p>
     {% endif %}
   </div>
 
   <div id="admin-message" class="form-message"></div>
 </section>
+
+<script>
+// Load analytics data
+async function loadAnalytics() {
+  try {
+    const response = await fetch('/api/admin/analytics');
+    const data = await response.json();
+    
+    // Update metric cards
+    document.getElementById('pending-count').textContent = data.listings.pending;
+    document.getElementById('verified-count').textContent = data.listings.verified;
+    document.getElementById('surveys-count').textContent = data.survey_requests.total;
+    document.getElementById('reports-count').textContent = data.reports.total;
+    
+    // Listings Pie Chart
+    const listingCtx = document.getElementById('listingChart');
+    if (listingCtx) {
+      new Chart(listingCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Verified', 'Pending'],
+          datasets: [{
+            data: [data.listings.verified, data.listings.pending],
+            backgroundColor: ['#10b981', '#f59e0b'],
+            borderColor: ['#059669', '#d97706'],
+            borderWidth: 2,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: { labels: { color: '#e2e8f0', font: { size: 12 } } }
+          }
+        }
+      });
+    }
+    
+    // Survey Status Chart
+    const surveyCtx = document.getElementById('surveyChart');
+    if (surveyCtx) {
+      new Chart(surveyCtx, {
+        type: 'bar',
+        data: {
+          labels: ['Pending', 'Scheduled', 'Completed'],
+          datasets: [{
+            label: 'Surveys',
+            data: [data.survey_requests.pending, data.survey_requests.scheduled, data.survey_requests.completed],
+            backgroundColor: ['#f59e0b', '#3b82f6', '#10b981'],
+            borderRadius: 4,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { labels: { color: '#e2e8f0', font: { size: 12 } } }
+          },
+          scales: {
+            y: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
+            x: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } }
+          }
+        }
+      });
+    }
+    
+    // Interest Requests Chart
+    const interestCtx = document.getElementById('interestChart');
+    if (interestCtx) {
+      new Chart(interestCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Connected', 'Pending'],
+          datasets: [{
+            data: [data.interest_requests.connected, data.interest_requests.pending],
+            backgroundColor: ['#8b5cf6', '#ec4899'],
+            borderColor: ['#7c3aed', '#db2777'],
+            borderWidth: 2,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: { labels: { color: '#e2e8f0', font: { size: 12 } } }
+          }
+        }
+      });
+    }
+    
+    // Reports Chart
+    const reportCtx = document.getElementById('reportChart');
+    if (reportCtx) {
+      new Chart(reportCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Resolved', 'Open'],
+          datasets: [{
+            data: [data.reports.resolved, data.reports.open],
+            backgroundColor: ['#10b981', '#ef4444'],
+            borderColor: ['#059669', '#dc2626'],
+            borderWidth: 2,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: { labels: { color: '#e2e8f0', font: { size: 12 } } }
+          }
+        }
+      });
+    }
+    
+    // Load recommendations
+    const recommendationsList = document.getElementById('recommendations-list');
+    if (data.recommendations && data.recommendations.length > 0) {
+      recommendationsList.innerHTML = data.recommendations.map(rec => `
+        <div class="recommendation-item recommendation-${rec.priority}">
+          <div class="recommendation-header">
+            <h4>${rec.title}</h4>
+            <span class="priority-badge priority-${rec.priority}">${rec.priority}</span>
+          </div>
+          <p>${rec.message}</p>
+        </div>
+      `).join('');
+    } else {
+      recommendationsList.innerHTML = '<p class="empty-text">✓ Platform running smoothly. No critical recommendations at this time.</p>';
+    }
+  } catch (error) {
+    console.error('Failed to load analytics:', error);
+    document.getElementById('recommendations-list').innerHTML = '<p class="error-text">Failed to load analytics data.</p>';
+  }
+}
+
+// Load analytics when page loads
+document.addEventListener('DOMContentLoaded', loadAnalytics);
+</script>
 {% endblock %}

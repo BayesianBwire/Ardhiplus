@@ -357,6 +357,29 @@ nav a:hover,
   font-weight: 700;
 }
 
+.badge-verified {
+  background: #10b981;
+  color: white;
+}
+
+.verified-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(16, 185, 129, 0.1);
+  border-left: 4px solid #10b981;
+  color: #10b981;
+  font-weight: 600;
+  border-radius: 0.4rem;
+}
+
+body.light .verified-status {
+  background: rgba(16, 185, 129, 0.08);
+  color: #059669;
+}
+
 .listing-meta {
   color: #94a3b8;
   font-size: 0.95rem;
@@ -397,6 +420,50 @@ nav a:hover,
   padding: 0.95rem 1rem;
   background: #0f172a;
   color: #e2e8f0;
+}
+
+.password-field {
+  position: relative;
+}
+
+.password-field input {
+  padding-right: 3rem;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 0.6rem;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.password-toggle svg {
+  display: block;
+}
+
+/* Light theme overrides when body has class 'light' */
+body.light {
+  color-scheme: light;
+  background: #ffffff;
+  color: #0f172a;
+  --bg: #ffffff;
+  --surface: #f8fafc;
+  --surface-strong: #ffffff;
+  --text: #0f172a;
+  --muted: #475569;
+  --brand-navy: #0b2540;
+  --brand-gold: #b69a3a;
+  --brand-gold-soft: rgba(182,154,58,0.08);
+  --brand-green: #2d7a20;
+  --border: rgba(11,37,64,0.06);
 }
 
 .panel-form textarea {
@@ -581,34 +648,227 @@ nav a:hover,
     grid-template-columns: 1fr;
   }
 
-  .marketplace-controls {
-    flex-direction: column;
-    align-items: stretch;
+/* Analytics Dashboard Styles */
+.analytics-dashboard {
+  padding: 2rem 0;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.metric-card {
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 1.5rem;
+  padding: 1.5rem;
+  text-align: center;
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+.metric-card h3 {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  color: #cbd5e1;
+  font-weight: 500;
+}
+
+.metric-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0.5rem 0;
+  color: #f8fafc;
+}
+
+.metric-label {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+.metric-pending {
+  border-left: 4px solid #f59e0b;
+}
+
+.metric-verified {
+  border-left: 4px solid #10b981;
+}
+
+.metric-surveys {
+  border-left: 4px solid #3b82f6;
+}
+
+.metric-reports {
+  border-left: 4px solid #ef4444;
+}
+
+.charts-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.chart-box {
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 1.5rem;
+  padding: 1.5rem;
+}
+
+.chart-box h3 {
+  margin: 0 0 1.25rem;
+  color: #f8fafc;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.recommendations-box {
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 1.5rem;
+  padding: 2rem;
+}
+
+.recommendations-box h3 {
+  margin: 0 0 1.5rem;
+  color: #f8fafc;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.recommendations-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.recommendation-item {
+  padding: 1rem 1.25rem;
+  border-radius: 1rem;
+  border-left: 4px solid;
+}
+
+.recommendation-high {
+  background: rgba(239, 68, 68, 0.08);
+  border-left-color: #ef4444;
+}
+
+.recommendation-medium {
+  background: rgba(245, 158, 11, 0.08);
+  border-left-color: #f59e0b;
+}
+
+.recommendation-low {
+  background: rgba(34, 197, 94, 0.08);
+  border-left-color: #22c55e;
+}
+
+.recommendation-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.recommendation-item h4 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 1rem;
+}
+
+.recommendation-item p {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.9rem;
+}
+
+.priority-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.priority-high {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+}
+
+.priority-medium {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+}
+
+.priority-low {
+  background: rgba(34, 197, 94, 0.2);
+  color: #86efac;
+}
+
+.loading-text,
+.empty-text,
+.error-text {
+  text-align: center;
+  color: #94a3b8;
+  padding: 2rem;
+  font-style: italic;
+}
+
+.error-text {
+  color: #fca5a5;
+}
+
+body.light .metric-card {
+  background: rgba(248, 250, 252, 0.95);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+body.light .chart-box,
+body.light .recommendations-box {
+  background: rgba(248, 250, 252, 0.95);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+body.light .recommendation-high {
+  background: rgba(239, 68, 68, 0.06);
+}
+
+body.light .recommendation-medium {
+  background: rgba(245, 158, 11, 0.06);
+}
+
+body.light .recommendation-low {
+  background: rgba(34, 197, 94, 0.06);
+}
+
+@media (max-width: 768px) {
+  .metrics-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
   }
 
-  .market-toggle {
-    justify-content: flex-start;
-    width: 100%;
-  }
-
-  .market-toggle .button {
-    flex: 1;
-  }
-
-  .map-card {
-    padding: 1rem;
-  }
-
-  .map-grid {
-    height: 280px;
-  }
-
-  .contact-grid,
-  .form-panel {
-    width: 100%;
-  }
-
-  .footer-grid {
+  .charts-container {
     grid-template-columns: 1fr;
   }
+
+  .metric-value {
+    font-size: 2rem;
+  }
+
+  .recommendations-box {
+    padding: 1.5rem;
+  }
 }
+
