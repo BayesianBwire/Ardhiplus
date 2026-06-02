@@ -25,11 +25,40 @@ function Agents() {
     <section className="space-y-8">
       {/* Header */}
       <div className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-8 shadow-soft">
-        <h1 className="text-4xl font-bold text-white">Agent Directory</h1>
-        <p className="mt-3 max-w-2xl text-slate-400">
-          Find trusted, verified real estate agents and brokers. Browse profiles, ratings, and listings from top
-          professionals on Ardhi Plus.
-        </p>
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
+          <div>
+            <h1 className="text-4xl font-bold text-white">Agents & Brokers</h1>
+            <p className="mt-3 max-w-2xl text-slate-400">
+              Find trusted, verified agents and brokers. Whether you're a landowner looking to sell or a broker
+              looking to list properties, Ardhi Plus connects you with verified professionals and tools to make the
+              process simple and secure.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <a
+                href="/post-property"
+                className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400"
+              >
+                List your land
+              </a>
+              <a
+                href="/register?role=broker"
+                className="inline-flex items-center gap-2 rounded-full border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-300 hover:border-emerald-400"
+              >
+                Join as a broker
+              </a>
+            </div>
+          </div>
+
+          <div className="hidden md:block w-80">
+            <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+              <p className="text-sm font-semibold text-sky-300">For Landowners</p>
+              <p className="mt-2 text-sm text-slate-400">List land quickly, verify survey documents, and get matched with local brokers who specialise in land sales.</p>
+              <hr className="my-3 border-slate-800" />
+              <p className="text-sm font-semibold text-sky-300">For Brokers</p>
+              <p className="mt-2 text-sm text-slate-400">Create a trusted profile, showcase listings, and reach verified landowners actively selling property.</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Stats */}
@@ -131,6 +160,11 @@ function Agents() {
                     {agent.verified && (
                       <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold">
                         ✓
+                      </span>
+                    )}
+                    {agent.specialization.includes('Land') && (
+                      <span className="ml-2 inline-flex items-center rounded-full bg-amber-500/10 text-amber-300 text-xs font-semibold px-2 py-1">
+                        Land specialist
                       </span>
                     )}
                   </div>
