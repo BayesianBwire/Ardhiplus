@@ -2,6 +2,77 @@
 {% block content %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+<style>
+/* Constrain chart boxes so charts don't expand to full page */
+.charts-container{display:flex;flex-wrap:wrap;gap:1rem;justify-content:flex-start;align-items:flex-start}
+.chart-box{flex:1 1 minmax(220px,380px);max-width:420px;margin:0 auto;display:flex;flex-direction:column;gap:0.75rem}
+.chart-box h3{margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chart-box canvas{width:100% !important;height:240px !important;max-height:240px}
+
+/* Metric details modal */
+.metric-modal{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.9);padding:1rem;overflow:auto}
+.metric-modal.open{display:flex}
+.metric-modal-content{width:min(100%,900px);max-height:min(100%,calc(100vh - 3rem));background:#0f172a;border:1px solid #334155;border-radius:1rem;box-shadow:0 20px 60px rgba(0,0,0,.45);overflow:hidden;display:flex;flex-direction:column}
+.metric-modal-header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;background:#111827;border-bottom:1px solid #334155}
+.metric-modal-header h3{margin:0;font-size:1.15rem;color:#e2e8f0}
+.metric-modal-close{background:none;border:0;color:#cbd5e1;font-size:1rem;cursor:pointer;padding:0.5rem 0.75rem;border-radius:.5rem}
+.metric-modal-close:hover{background:rgba(148,163,184,.15)}
+.metric-modal-body{padding:1.25rem;overflow:auto;color:#cbd5e1}
+.metric-modal-body section{margin-top:1rem}
+.metric-modal-body h2{margin-top:0;color:#f8fafc}
+.metric-modal-body .admin-card{margin-top:0.75rem}
+.metric-card-header{display:flex;align-items:center;justify-content:space-between;gap:0.5rem;margin-bottom:0.5rem}
+.metric-notification{display:inline-flex;align-items:center;justify-content:center;padding:0.15rem 0.35rem;background:#f59e0b;color:#0f172a;font-size:0.6rem;font-weight:700;border-radius:6px;letter-spacing:0}
+.metric-modal-footer{border-top:1px solid rgba(148,163,184,.15);padding:1rem 1.25rem 0;margin-top:1rem;text-align:right}
+.metric-modal-footer button{font-size:0.9rem}
+.survey-actions{display:flex;flex-wrap:wrap;gap:0.75rem;margin-top:1rem}
+.survey-actions .button{min-width:100px}
+.admin-details-sections{display:none}
+.metric-card{padding:0.9rem;border-radius:1rem}
+.metric-card h3{font-size:0.85rem;margin-bottom:0.25rem}
+.metric-value{font-size:1.6rem}
+.metrics-grid{gap:0.9rem}
+.current-admin{background:rgba(99,102,241,0.03)}
+.current-admin td{opacity:1}
+
+/* Responsive / Mobile tweaks */
+@media (max-width: 900px) {
+  .charts-container{flex-direction:column;align-items:stretch}
+  .chart-box{max-width:100%;width:100%;margin:0;padding:0.5rem}
+  .chart-box canvas{height:200px !important;max-height:200px}
+}
+
+@media (max-width: 600px) {
+  .metrics-grid{display:flex;flex-direction:column;gap:0.5rem}
+  .metric-card{display:block;width:100%;padding:0.6rem;border-radius:0.75rem}
+  .metric-card h3{font-size:0.9rem}
+  .metric-value{font-size:1.25rem}
+  .metric-label{font-size:0.75rem}
+  .metric-notification{font-size:0.7rem;padding:0.2rem 0.35rem}
+
+  /* Make modal full-screen on small devices for easier reading */
+  .metric-modal{padding:0}
+  .metric-modal-content{width:100%;height:100%;max-height:100%;border-radius:0;margin:0}
+  .metric-modal-body{padding:0.75rem}
+  .metric-modal-header{padding:0.6rem 0.75rem}
+
+  /* Stack survey action buttons and make them touch-friendly */
+  .survey-actions{flex-direction:column}
+  .survey-actions .button{width:100%;min-width:0;padding:0.6rem 0.75rem}
+
+  /* Make admin table scrollable horizontally */
+  #admins-table{display:block;width:100%;overflow:auto}
+  #admins-table table, #admins-table thead, #admins-table tbody, #admins-table th, #admins-table td, #admins-table tr{display:block}
+  #admins-table thead tr{position:relative}
+  #admins-table tbody tr{display:flex;flex-direction:row;gap:0.5rem;padding:0.5rem 0;border-bottom:1px solid rgba(148,163,184,.06)}
+  #admins-table tbody tr td{flex:1 1 auto}
+
+  /* Reduce padding for cards in lists */
+  .pending-listings .card, .admin-card{padding:0.6rem}
+  .recommendations-box{padding:0.5rem}
+}
+</style>
+
 <section class="section-heading">
   <h1>Admin Control Center</h1>
   <p>Manage all requests, approvals, and site operations in one place.</p>
@@ -11,26 +82,51 @@
 <section class="analytics-dashboard space-y-8">
   <!-- Key Metrics Cards -->
   <div class="metrics-grid">
-    <div class="metric-card metric-pending">
-      <h3>Pending Listings</h3>
+    <div class="position-card">
+      <div class="left">
+        <h4>Overall Position</h4>
+        <div class="sub" id="overall-position-ratio">92/216</div>
+      </div>
+      <div class="center">
+        <div style="display:flex;align-items:center;gap:0.75rem">
+          <div class="position-value" id="overall-position-value">12</div>
+          <div class="position-change" id="overall-position-change"><span class="arrow">▲</span><span>2</span></div>
+        </div>
+        <canvas id="overall-position-sparkline" width="160" height="44" style="max-width:160px;height:44px"></canvas>
+      </div>
+    </div>
+    <a href="#pending-listings" class="metric-card metric-pending clickable-metric" data-target="pending-listings" role="button">
+      <div class="metric-card-header">
+        <h3>Pending Listings</h3>
+        <span class="metric-notification" id="pending-badge" hidden></span>
+      </div>
       <p class="metric-value" id="pending-count">0</p>
-      <p class="metric-label">awaiting verification</p>
-    </div>
-    <div class="metric-card metric-verified">
-      <h3>Verified Listings</h3>
+      <p class="metric-label" id="pending-label">awaiting verification</p>
+    </a>
+    <a href="#verified-listings" class="metric-card metric-verified clickable-metric" data-target="verified-listings" role="button">
+      <div class="metric-card-header">
+        <h3>Verified Listings</h3>
+        <span class="metric-notification" id="verified-badge" hidden></span>
+      </div>
       <p class="metric-value" id="verified-count">0</p>
-      <p class="metric-label">approved & live</p>
-    </div>
-    <div class="metric-card metric-surveys">
-      <h3>Survey Requests</h3>
+      <p class="metric-label" id="verified-label">approved & live</p>
+    </a>
+    <a href="#survey-requests" class="metric-card metric-surveys clickable-metric" data-target="survey-requests" role="button">
+      <div class="metric-card-header">
+        <h3>Survey Requests</h3>
+        <span class="metric-notification" id="surveys-badge" hidden></span>
+      </div>
       <p class="metric-value" id="surveys-count">0</p>
-      <p class="metric-label">property assessments</p>
-    </div>
-    <div class="metric-card metric-reports">
-      <h3>Reports</h3>
+      <p class="metric-label" id="surveys-label">property assessments</p>
+    </a>
+    <a href="#reports-section" class="metric-card metric-reports clickable-metric" data-target="reports-section" role="button">
+      <div class="metric-card-header">
+        <h3>Reports</h3>
+        <span class="metric-notification" id="reports-badge" hidden></span>
+      </div>
       <p class="metric-value" id="reports-count">0</p>
-      <p class="metric-label">issues to review</p>
-    </div>
+      <p class="metric-label" id="reports-label">issues to review</p>
+    </a>
   </div>
 
   <!-- Charts Section -->
@@ -65,9 +161,19 @@
   </div>
 </section>
 
-<section class="admin-panel space-y-8">
+<div id="metric-modal" class="metric-modal" aria-hidden="true">
+  <div class="metric-modal-content">
+    <div class="metric-modal-header">
+      <h3 id="metric-modal-title">Details</h3>
+      <button id="metric-modal-close" class="metric-modal-close" aria-label="Close details">×</button>
+    </div>
+    <div id="metric-modal-body" class="metric-modal-body"></div>
+  </div>
+</div>
+
+<section class="admin-panel space-y-8 admin-details-sections">
   <div class="admin-section">
-    <h2>Pending listings</h2>
+    <h2 id="pending-listings">Pending listings</h2>
     {% if pending %}
     <div class="pending-listings">
       {% for listing in pending %}
@@ -95,7 +201,7 @@
   </div>
 
   <div class="admin-section">
-    <h2>Verified Listings</h2>
+    <h2 id="verified-listings">Verified Listings</h2>
     {% if verified %}
     <div class="pending-listings">
       {% for listing in verified %}
@@ -123,7 +229,7 @@
   </div>
 
   <div class="admin-section">
-    <h2>Survey Requests</h2>
+    <h2 id="survey-requests">Survey Requests</h2>
     {% if survey_requests %}
     <div class="pending-listings">
       {% for sr in survey_requests %}
@@ -135,6 +241,11 @@
           <p><strong>Email:</strong> {{ sr.email }}</p>
           <p><strong>Location:</strong> {{ sr.location }}</p>
           <p><strong>Requested:</strong> {{ sr.requested_at }}</p>
+          <div class="survey-actions">
+            <button type="button" class="button button-primary survey-action" data-id="{{ sr.id }}" data-action="Completed">Mark Done</button>
+            <button type="button" class="button button-secondary survey-action" data-id="{{ sr.id }}" data-action="Archived">Archive</button>
+            <button type="button" class="button button-danger survey-action" data-id="{{ sr.id }}" data-action="Dismissed">Dismiss</button>
+          </div>
         </div>
       </article>
       {% endfor %}
@@ -168,7 +279,7 @@
   </div>
 
   <div class="admin-section">
-    <h2>Reported Issues</h2>
+    <h2 id="reports-section">Reported Issues</h2>
     {% if reports %}
     <div class="pending-listings">
       {% for report in reports %}
@@ -190,52 +301,9 @@
   </div>
 
   <div id="admin-message" class="form-message"></div>
-</section>
+ </section>
 
-<section class="admin-panel space-y-8">
-  <div class="admin-section">
-    <h2>Admin Management</h2>
-    <div id="admin-management">
-      <div class="card">
-        <h4>Existing Admins</h4>
-        <table id="admins-table" class="table">
-          <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-
-      <div class="card">
-        <h4>Add Admin</h4>
-        <form id="add-admin-form">
-          <label>Name<br><input type="text" name="name" required></label>
-          <label>Email<br><input type="email" name="email" required></label>
-          <label>Role<br>
-            <select name="role">
-              <option value="admin">Admin</option>
-              <option value="manager">Manager</option>
-              <option value="sec">Secretary</option>
-              <option value="treasurer">Treasurer</option>
-              <option value="tech">Tech</option>
-            </select>
-          </label>
-          <label>Password (optional)<br><input type="password" name="password"></label>
-          <button class="button" type="submit">Create Admin</button>
-        </form>
-      </div>
-
-      <div class="card">
-        <h4>Emergency Actions</h4>
-        {% if session.csrf_token %}
-        {% endif %}
-        {% if current_user and current_user.role == 'tech' %}
-        <button id="suspend-all" class="button button-danger">Suspend All (tech only)</button>
-        {% else %}
-        <p>Only users with the <strong>tech</strong> role can suspend all accounts.</p>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-</section>
+<!-- Admin Management removed: moved to /tech for tech users -->
 
 <script>
 // Load analytics data
@@ -249,6 +317,42 @@ async function loadAnalytics() {
     document.getElementById('verified-count').textContent = data.listings.verified;
     document.getElementById('surveys-count').textContent = data.survey_requests.total;
     document.getElementById('reports-count').textContent = data.reports.total;
+
+    const updateBadge = (id, count) => {
+      const badge = document.getElementById(id);
+      if (!badge) return;
+      if (count > 0) {
+        badge.hidden = false;
+        badge.textContent = String(count);
+        badge.setAttribute('aria-label', `${count}`);
+      } else {
+        badge.hidden = true;
+        badge.removeAttribute('aria-label');
+      }
+    };
+
+    updateBadge('pending-badge', data.listings.pending);
+    // Verified-card badge shows actionable pending items (listings needing verification)
+    updateBadge('verified-badge', data.listings.pending);
+    updateBadge('surveys-badge', data.survey_requests.total, 'open');
+    updateBadge('reports-badge', data.reports.total, 'report(s)');
+
+    const pendingLabel = document.getElementById('pending-label');
+    if (pendingLabel) {
+      pendingLabel.textContent = data.listings.pending > 0 ? `${data.listings.pending} pending, needs confirmation` : 'no pending listings';
+    }
+    const verifiedLabel = document.getElementById('verified-label');
+    if (verifiedLabel) {
+      verifiedLabel.textContent = data.listings.verified > 0 ? `${data.listings.verified} verified, live now` : 'no verified listings';
+    }
+    const surveysLabel = document.getElementById('surveys-label');
+    if (surveysLabel) {
+      surveysLabel.textContent = data.survey_requests.total > 0 ? `${data.survey_requests.total} survey request(s) open` : 'no survey requests';
+    }
+    const reportsLabel = document.getElementById('reports-label');
+    if (reportsLabel) {
+      reportsLabel.textContent = data.reports.total > 0 ? `${data.reports.total} issue(s) to review` : 'no reports';
+    }
     
     // Listings Pie Chart
     const listingCtx = document.getElementById('listingChart');
@@ -364,6 +468,42 @@ async function loadAnalytics() {
     } else {
       recommendationsList.innerHTML = '<p class="empty-text">✓ Platform running smoothly. No critical recommendations at this time.</p>';
     }
+
+    // Populate overall position card if analytics provides it
+    if (data.overall_position) {
+      const ratio = document.getElementById('overall-position-ratio');
+      const value = document.getElementById('overall-position-value');
+      const change = document.getElementById('overall-position-change');
+      if (ratio && data.overall_position.ratio) ratio.textContent = data.overall_position.ratio;
+      if (value && typeof data.overall_position.value !== 'undefined') value.textContent = String(data.overall_position.value);
+      if (change && typeof data.overall_position.change !== 'undefined') {
+        const ch = Number(data.overall_position.change) || 0;
+        change.innerHTML = `${ch > 0 ? '<span class="arrow">▲</span>' : ch < 0 ? '<span class="arrow">▼</span>' : ''}<span>${Math.abs(ch)}</span>`;
+        change.classList.remove('change-up','change-down');
+        if (ch > 0) change.classList.add('change-up');
+        if (ch < 0) change.classList.add('change-down');
+      }
+      // render sparkline for trend if provided
+      try {
+        const trend = data.overall_position.trend || [];
+        const ctx = document.getElementById('overall-position-sparkline');
+        if (ctx && window && window.Chart && trend.length) {
+          if (window.overallPositionChart) window.overallPositionChart.destroy();
+          window.overallPositionChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: trend.map((_,i)=>i+1), datasets: [{ data: trend, borderColor: '#d6b34e', backgroundColor: 'rgba(214,179,78,0.08)', borderWidth: 2, fill: true, pointRadius: 0, tension: 0.35 }] },
+            options: {
+              responsive: false,
+              maintainAspectRatio: false,
+              scales: { x: { display: false }, y: { display: false } },
+              plugins: { legend: { display: false } },
+            }
+          });
+        }
+      } catch (e) {
+        console.error('sparkline error', e);
+      }
+    }
   } catch (error) {
     console.error('Failed to load analytics:', error);
     document.getElementById('recommendations-list').innerHTML = '<p class="error-text">Failed to load analytics data.</p>';
@@ -372,54 +512,11 @@ async function loadAnalytics() {
 
 // Load analytics when page loads
 document.addEventListener('DOMContentLoaded', loadAnalytics);
-// --- Admin management JS ---
-async function loadAdmins(){
-  try{
-    const res = await fetch('/api/admin/users');
-    const data = await res.json();
-    const tbody = document.querySelector('#admins-table tbody');
-    tbody.innerHTML = data.map(u => `
-      <tr data-id="${u.id}"><td>${u.id}</td><td>${u.name}</td><td>${u.email}</td>
-      <td><select class="role-select">
-        <option value="admin" ${u.role==='admin'?'selected':''}>admin</option>
-        <option value="manager" ${u.role==='manager'?'selected':''}>manager</option>
-        <option value="sec" ${u.role==='sec'?'selected':''}>sec</option>
-        <option value="treasurer" ${u.role==='treasurer'?'selected':''}>treasurer</option>
-        <option value="tech" ${u.role==='tech'?'selected':''}>tech</option>
-      </select></td>
-      <td><button class="button admin-update">Update</button> <button class="button button-danger admin-delete">Delete</button></td></tr>
-    `).join('');
-
-    // bind actions
-    document.querySelectorAll('.admin-delete').forEach(btn=>btn.addEventListener('click', async (e)=>{
-      const tr = e.target.closest('tr'); const id = tr.dataset.id;
-      if(!confirm('Delete admin id '+id+'?')) return;
-      const resp = await fetch('/api/admin/users/'+id, {method:'DELETE', headers:{'X-CSRF-Token': sessionStorage.getItem('csrf')||''}});
-      const j = await resp.json();
-      if(j.status==='ok') loadAdmins(); else alert(j.message||'Failed');
-    }));
-
-    document.querySelectorAll('.admin-update').forEach(btn=>btn.addEventListener('click', async (e)=>{
-      const tr = e.target.closest('tr'); const id = tr.dataset.id; const role = tr.querySelector('.role-select').value;
-      const resp = await fetch('/api/admin/users/'+id, {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRF-Token': sessionStorage.getItem('csrf')||''}, body:JSON.stringify({role})});
-      const j = await resp.json();
-      if(j.status==='ok') loadAdmins(); else alert(j.message||'Failed');
-    }));
-  }catch(err){console.error('loadAdmins',err)}
-}
-
 document.addEventListener('DOMContentLoaded', ()=>{
   // store CSRF in sessionStorage for fetch calls
   try{ sessionStorage.setItem('csrf', '{{ session.csrf_token }}') }catch(e){}
-  const form = document.getElementById('add-admin-form');
-  if(form) form.addEventListener('submit', async (ev)=>{
-    ev.preventDefault();
-    const fd = new FormData(form);
-    const payload = {name: fd.get('name'), email: fd.get('email'), role: fd.get('role'), password: fd.get('password')};
-    const resp = await fetch('/api/admin/users', {method:'POST', headers:{'Content-Type':'application/json','X-CSRF-Token': sessionStorage.getItem('csrf')||''}, body:JSON.stringify(payload)});
-    const j = await resp.json();
-    if(j.status==='ok'){alert('Admin created'); form.reset(); loadAdmins()} else {alert(j.message||'Failed')}
-  });
+  try{ sessionStorage.setItem('current_user_id', '{{ current_user.id if current_user else "" }}') }catch(e){}
+  try{ sessionStorage.setItem('current_user_email', '{{ current_user.email if current_user else "" }}') }catch(e){}
 
   const suspendBtn = document.getElementById('suspend-all');
   if(suspendBtn) suspendBtn.addEventListener('click', async ()=>{
@@ -429,8 +526,106 @@ document.addEventListener('DOMContentLoaded', ()=>{
     if(j.status==='ok') alert('Suspended'); else alert(j.message||'Failed');
   });
 
-  // initial load
-  loadAdmins();
+  document.addEventListener('click', async function (e) {
+    const button = e.target.closest && e.target.closest('.survey-action');
+    if (!button) return;
+    const surveyId = button.dataset.id;
+    const status = button.dataset.action;
+    if (!surveyId || !status) return;
+    if (!confirm(`Mark survey request ${surveyId} as ${status}?`)) return;
+    const res = await fetch(`/api/admin/survey-requests/${surveyId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': sessionStorage.getItem('csrf') || ''
+      },
+      body: JSON.stringify({status})
+    });
+    const result = await res.json();
+    if (result.status === 'ok') {
+      alert(`Survey request updated to ${status}`);
+      window.location.reload();
+    } else {
+      alert(result.message || 'Failed to update survey request');
+    }
+  });
+
+});
+
+// Modal helpers for metric cards
+function openMetricModal(title, contentHtml, targetId) {
+  const modal = document.getElementById('metric-modal');
+  const titleEl = document.getElementById('metric-modal-title');
+  const bodyEl = document.getElementById('metric-modal-body');
+  if (!modal || !titleEl || !bodyEl) return;
+  titleEl.textContent = title;
+  bodyEl.innerHTML = `${contentHtml}
+    <div class="metric-modal-footer">
+      <button type="button" class="button button-outline metric-modal-close">Close</button>
+    </div>`;
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden', 'false');
+}
+
+function closeMetricModal() {
+  const modal = document.getElementById('metric-modal');
+  if (!modal) return;
+  modal.classList.remove('open');
+  modal.setAttribute('aria-hidden', 'true');
+}
+
+function getSectionContentForTarget(targetId) {
+  const target = document.getElementById(targetId);
+  if (!target) return '<p>Details are not available.</p>';
+  const section = target.closest('.admin-section') || target;
+  const titleText = target.textContent.trim() || 'Details';
+  const hasDetails = section.querySelector('.admin-card, .card, .pending-listings, .recommendations-list');
+  const emptyState = section.querySelector('.empty-state');
+  if (!hasDetails) {
+    return `
+      <section>
+        <h2>${titleText}</h2>
+        <p>Nothing to show.</p>
+      </section>
+    `;
+  }
+
+  if (emptyState) {
+    return `
+      <section>
+        <h2>${titleText}</h2>
+        <p>${emptyState.textContent.trim() || 'Nothing to show.'}</p>
+      </section>
+    `;
+  }
+
+  const clone = section.cloneNode(true);
+  const sectionTitle = clone.querySelector('h2');
+  if (sectionTitle) sectionTitle.remove();
+  const cards = clone.querySelectorAll('.admin-card');
+  cards.forEach(card => card.classList.add('metric-modal-card'));
+  return `
+    <section>
+      <h2>${titleText}</h2>
+      ${clone.innerHTML}
+    </section>
+  `;
+}
+
+document.getElementById('metric-modal-close')?.addEventListener('click', closeMetricModal);
+document.getElementById('metric-modal')?.addEventListener('click', function (e) {
+  if (e.target === this) closeMetricModal();
+});
+
+document.addEventListener('click', function (e) {
+  const el = e.target.closest && e.target.closest('.clickable-metric');
+  if (!el) return;
+  const target = el.getAttribute('data-target');
+  if (!target) return;
+  e.preventDefault();
+  const title = el.querySelector('h3')?.textContent || 'Details';
+  const content = getSectionContentForTarget(target);
+  openMetricModal(title, content, target);
 });
 </script>
 {% endblock %}

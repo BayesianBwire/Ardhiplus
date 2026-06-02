@@ -19,6 +19,7 @@ from passlib.hash import bcrypt as passlib_bcrypt
 from sqlalchemy.exc import SQLAlchemyError
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from sqlalchemy import or_
 from dotenv import load_dotenv
 import smtplib
 import ssl
@@ -37,7 +38,13 @@ load_dotenv()
 def resolve_database_uri():
     # Require an explicit Postgres URL in production. Normalize common schemes.
     uri = os.environ.get("SQLALCHEMY_DATABASE_URI") or os.environ.get("DATABASE_URL")
+
+    skip_check = os.environ.get("SKIP_DB_CHECK") == "1"
+    allow_sqlite_dev = os.environ.get("ALLOW_SQLITE_DEV") == "1"
+
     if not uri:
+        if skip_check and allow_sqlite_dev:
+            return "sqlite:///dev.db"
         raise RuntimeError("DATABASE_URL or SQLALCHEMY_DATABASE_URI must be set to a PostgreSQL URI")
 
     # Accept legacy `postgres://` and normalize to `postgresql://`
@@ -46,6 +53,11 @@ def resolve_database_uri():
 
     if not uri.startswith("postgresql://"):
         raise RuntimeError("DATABASE_URL must start with postgresql://")
+
+    # If developer asked to skip connectivity checks, return the normalized uri
+    if skip_check:
+        print("SKIP_DB_CHECK=1: skipping Postgres connectivity test")
+        return uri
 
     # Verify connectivity to the Postgres server (fail fast if unreachable)
     try:
@@ -655,6 +667,35 @@ def check_csrf():
     return True
 
 
+def verify_password_hash(stored_hash: str, password: str) -> bool:
+    if not stored_hash or not password:
+        return False
+
+    try:
+        if check_password_hash(stored_hash, password):
+            return True
+    except Exception:
+        pass
+
+    if isinstance(stored_hash, str) and stored_hash.startswith("scrypt:"):
+        try:
+            method, salt, hashval = stored_hash.split("$", 2)
+            _, n, r, p = method.split(":")
+            derived = hashlib.scrypt(
+                password.encode("utf-8"),
+                salt=salt.encode("utf-8"),
+                n=int(n),
+                r=int(r),
+                p=int(p),
+                maxmem=132 * int(n) * int(r) * int(p),
+            ).hex()
+            return hmac.compare_digest(derived, hashval)
+        except Exception:
+            return False
+
+    return False
+
+
 def create_jwt(user_id, expires_delta=None):
     secret = app.config.get("JWT_SECRET")
     now = datetime.utcnow()
@@ -830,8 +871,39 @@ def admin_page_required(f):
 
     @wraps(f)
     def wrapper(*args, **kwargs):
-        if not getattr(g, "user", None) or getattr(g.user, "role", None) not in ("admin", "superadmin"):
+        # Allow admin, superadmin, and tech roles to access admin pages
+        if not getattr(g, "user", None) or getattr(g.user, "role", None) not in ("admin", "superadmin", "tech"):
             return redirect(url_for("login"))
+        return f(*args, **kwargs)
+
+    return wrapper
+
+
+def admin_or_tech_api_required(f):
+    """Decorator for API endpoints that allows both JWT and session authentication"""
+    from functools import wraps
+
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        user = None
+        
+        # Try JWT token first
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            token = auth.split(" ", 1)[1]
+            payload = verify_jwt(token, expected_type="access")
+            if payload:
+                user = User.query.get(int(payload.get("sub")))
+        
+        # Fall back to session user
+        if not user:
+            user = getattr(g, "user", None)
+        
+        # Check if user exists and has proper role
+        if not user or user.role not in ("admin", "superadmin", "tech"):
+            return jsonify({"status": "error", "message": "Admin or tech access required."}), 403
+        
+        g.user = user
         return f(*args, **kwargs)
 
     return wrapper
@@ -850,7 +922,7 @@ def login_required(f):
 
 
 @app.route("/api/audit")
-@admin_required
+@admin_or_tech_api_required
 def api_audit():
     entries = AuditLog.query.order_by(AuditLog.created_at.desc()).limit(200).all()
     return jsonify([{"id": e.id, "user_id": e.user_id, "action": e.action, "ip": e.ip, "details": e.details, "created_at": e.created_at.isoformat()} for e in entries])
@@ -1014,7 +1086,7 @@ def post_property():
 
 
 @app.route("/api/admin/analytics")
-@admin_page_required
+@admin_or_tech_api_required
 def api_admin_analytics():
     # Get all analytics data for admin dashboard
     pending_count = Listing.query.filter_by(verified=False).count()
@@ -1037,11 +1109,40 @@ def api_admin_analytics():
     reports_open = Report.query.filter_by(status="Open").count()
     reports_resolved = Report.query.filter_by(status="Resolved").count()
     
+    # compute weekly trend for verified listings (last 7 days oldest->newest)
+    trend = []
+    today = datetime.utcnow().date()
+    for days_ago in range(6, -1, -1):
+        day = today - timedelta(days=days_ago)
+        start_dt = datetime(day.year, day.month, day.day)
+        end_dt = start_dt + timedelta(days=1)
+        try:
+            cnt = Listing.query.filter(Listing.verified == True, Listing.created_at >= start_dt, Listing.created_at < end_dt).count()
+        except Exception:
+            cnt = 0
+        trend.append(cnt)
+
+    # change: verified in last 7 days minus previous 7-day window
+    try:
+        recent = Listing.query.filter(Listing.verified == True, Listing.created_at >= (datetime.utcnow() - timedelta(days=7))).count()
+        previous = Listing.query.filter(Listing.verified == True, Listing.created_at >= (datetime.utcnow() - timedelta(days=14)), Listing.created_at < (datetime.utcnow() - timedelta(days=7))).count()
+        change_value = recent - previous
+    except Exception:
+        change_value = 0
+
+    total = pending_count + verified_count
+    overall = {
+        "ratio": f"{verified_count}/{total}",
+        "value": int((verified_count / total * 100) if total else 0),
+        "change": change_value,
+        "trend": trend,
+    }
+
     return jsonify({
         "listings": {
             "pending": pending_count,
             "verified": verified_count,
-            "total": pending_count + verified_count,
+            "total": total,
         },
         "survey_requests": {
             "total": survey_requests_count,
@@ -1064,6 +1165,7 @@ def api_admin_analytics():
             pending_count, verified_count, survey_requests_count, 
             reports_count, interest_requests_count
         ),
+        "overall_position": overall,
     })
 
 
@@ -1131,17 +1233,80 @@ def hidden_admin():
     )
 
 
+@app.route('/tech')
+@login_required
+def tech_page():
+    # Only allow users with the 'tech' role to access this page
+    if not getattr(g, 'user', None) or getattr(g.user, 'role', None) != 'tech':
+        return redirect(url_for('login'))
+    return render_template('tech.html', page='tech')
+
+
+@app.route('/api/admin/reset_user_password', methods=['POST'])
+@login_required
+def api_admin_reset_user_password():
+    # Allow tech, admin, or superadmin to reset a user's password via this endpoint
+    if not getattr(g, 'user', None) or g.user.role not in ('tech', 'admin', 'superadmin'):
+        return jsonify({"status": "error", "message": "Permission denied."}), 403
+    if not check_csrf():
+        return jsonify({"status": "error", "message": "Invalid CSRF token."}), 400
+    data = request.get_json() or {}
+    email = (data.get('email') or '').strip().lower()
+    temp_password = (data.get('temp_password') or '').strip()
+    if not email or not temp_password:
+        return jsonify({"status": "error", "message": "Email and temporary password are required."}), 400
+    user = User.query.filter(db.func.lower(User.email) == email.lower()).first()
+    if not user:
+        return jsonify({"status": "error", "message": "User not found."}), 404
+    # Set hashed password and store a transient temp_password for audit
+    user.password = generate_password_hash(temp_password)
+    user.temp_password = temp_password
+    try:
+        db.session.commit()
+        log_action(g.user.id if g.user else None, 'reset_user_password', f'target={user.email}')
+    except Exception:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": "Failed to reset password."}), 500
+    return jsonify({"status": "ok", "message": "Password reset and action logged."})
+
+
 @app.route('/api/admin/users', methods=['GET'])
-@admin_page_required
+@admin_or_tech_api_required
 def api_admin_list_users():
-    # List users with administrative roles
-    admin_roles = ('admin', 'superadmin', 'manager', 'sec', 'treasurer', 'tech')
-    users = User.query.filter(User.role.in_(admin_roles)).order_by(User.id.asc()).all()
-    return jsonify([{"id": u.id, "name": u.name, "email": u.email, "role": u.role, "registered_at": u.registered_at.isoformat()} for u in users])
+    # List users. Supports optional search via ?q= and returns all users by default.
+    q = (request.args.get('q') or '').strip()
+    query = User.query
+    if q:
+        like = f"%{q.lower()}%"
+        query = query.filter(or_(db.func.lower(User.email).like(like), db.func.lower(User.name).like(like)))
+    users = query.order_by(User.id.asc()).all()
+    return jsonify([{"id": u.id, "name": u.name, "email": u.email, "role": u.role, "registered_at": (u.registered_at.isoformat() if u.registered_at else None)} for u in users])
+
+
+@app.route('/api/admin/users/<int:user_id>/reset_password', methods=['POST'])
+@admin_or_tech_api_required
+def api_admin_reset_user_password_by_id(user_id: int):
+    # Allow admins or tech users (via JWT or session) to reset a user's password by id
+    data = request.get_json() or {}
+    password = (data.get('password') or '').strip()
+    if not password:
+        return jsonify({"status": "error", "message": "Password is required."}), 400
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"status": "error", "message": "User not found."}), 404
+    user.password = generate_password_hash(password)
+    user.temp_password = password
+    try:
+        db.session.commit()
+        log_action(getattr(g, 'user', None).id if getattr(g, 'user', None) else None, 'reset_user_password', f'target_id={user.id}')
+    except Exception:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": "Failed to reset password."}), 500
+    return jsonify({"status": "ok", "message": "Password reset and action logged."})
 
 
 @app.route('/api/admin/users', methods=['POST'])
-@admin_page_required
+@admin_or_tech_api_required
 def api_admin_create_user():
     # Only admins or superadmins can create admin users
     if getattr(g, 'user', None) is None or g.user.role not in ('admin', 'superadmin'):
@@ -1158,14 +1323,19 @@ def api_admin_create_user():
     existing = User.query.filter(db.func.lower(User.email) == email.lower()).first()
     if existing:
         return jsonify({"status": "error", "message": "User already exists."}), 400
+    # Prevent creating an admin with the same email as the currently logged-in user
+    if getattr(g, 'user', None) and g.user.email and g.user.email.lower() == email.lower():
+        return jsonify({"status": "error", "message": "Cannot create yourself as an admin."}), 400
     if not password:
         password = secrets.token_urlsafe(12)
+    # store a transient temp_password in the DB so admins can see the provided temporary password
+    temp_password = password
     hashed = generate_password_hash(password)
-    user = User(name=name, email=email, password=hashed, role=role)
+    user = User(name=name, email=email, password=hashed, role=role, temp_password=temp_password)
     db.session.add(user)
     db.session.commit()
-    # Do not return password in response
-    return jsonify({"status": "ok", "id": user.id, "email": user.email, "role": user.role})
+    # Return the transient temp_password to the creating admin (do not email)
+    return jsonify({"status": "ok", "id": user.id, "email": user.email, "role": user.role, "temp_password": temp_password})
 
 
 @app.route('/api/admin/users/<int:user_id>', methods=['PATCH'])
@@ -1196,6 +1366,9 @@ def api_admin_delete_user(user_id: int):
     user = User.query.get(user_id)
     if not user:
         return jsonify({"status": "error", "message": "User not found."}), 404
+    # Prevent admins from deleting themselves
+    if getattr(g, 'user', None) and g.user.id == user.id:
+        return jsonify({"status": "error", "message": "You cannot delete your own account."}), 400
     # Delete related tokens/sessions
     try:
         db.session.query(Message).filter((Message.sender_id == user.id) | (Message.recipient_id == user.id)).delete(synchronize_session=False)
@@ -1235,6 +1408,22 @@ def api_admin_suspend_all():
     return jsonify({"status": "ok"})
 
 
+@app.route('/api/admin/survey-requests/<int:survey_id>', methods=['PATCH'])
+@admin_page_required
+def api_admin_update_survey_request(survey_id: int):
+    survey = SurveyRequest.query.get(survey_id)
+    if not survey:
+        return jsonify({"status": "error", "message": "Survey request not found."}), 404
+    data = request.get_json() or {}
+    status = (data.get('status') or '').strip().title()
+    allowed_statuses = {'Reviewing', 'Scheduled', 'Completed', 'Archived', 'Dismissed'}
+    if status not in allowed_statuses:
+        return jsonify({"status": "error", "message": "Invalid survey status."}), 400
+    survey.status = status
+    db.session.commit()
+    return jsonify({"status": "ok", "id": survey.id, "status": survey.status})
+
+
 @app.route("/admin")
 def admin_dashboard():
     # Alias for /ardhimwenyewe - redirect to the dedicated admin route
@@ -1243,44 +1432,20 @@ def admin_dashboard():
 
 @app.route("/forgot-password")
 def forgot_password():
-    return render_template("forgot.html", page="forgot")
+    # Disabled per site policy: password reset flows are handled manually by tech personnel.
+    return render_template("message.html", page="forgot", message="Password reset is disabled. Please contact tech@ardhiplus.co.ke for assistance.")
 
 
 @app.route("/reset-password")
 def reset_password():
-    token = request.args.get("token", "")
-    return render_template("reset.html", page="reset", token=token)
+    # Disabled: password reset is not available via public links.
+    return render_template("message.html", page="reset", message="Password reset is disabled. Please contact tech@ardhiplus.co.ke for assistance.")
 
 
 @app.route("/api/forgot-password", methods=["POST"])
 def api_forgot_password():
-    data = request.get_json() or {}
-    if not check_csrf():
-        return jsonify({"status": "error", "message": "Invalid CSRF token."}), 400
-    email = data.get("email", "").strip().lower()
-    if not email:
-        return jsonify({"status": "error", "message": "Please provide your email address."}), 400
-
-    user = User.query.filter(db.func.lower(User.email) == email).first()
-    if user:
-        token = secrets.token_urlsafe(24)
-        temp_password = secrets.token_urlsafe(10)
-        reset_token = PasswordResetToken(
-            token=token,
-            email=user.email,
-            temp_password=temp_password,
-            expires=datetime.utcnow().timestamp() + 1800,
-        )
-        db.session.add(reset_token)
-        db.session.commit()
-        reset_link = url_for("reset_password", token=token, _external=True)
-        # Send password reset email (best-effort)
-        try:
-            send_password_reset_email(email, reset_link, temp_password)
-        except Exception:
-            pass
-
-    return jsonify({"status": "success", "message": "If this email is registered, reset instructions have been sent."}), 200
+    # Disabled endpoint. Password reset is handled manually by tech personnel.
+    return jsonify({"status": "error", "message": "Password reset is disabled. Contact tech@ardhiplus.co.ke"}), 403
 
 
 @app.route("/verify-email")
@@ -1339,34 +1504,8 @@ def api_verify_email():
 
 @app.route("/api/reset-password", methods=["POST"])
 def api_reset_password():
-    data = request.get_json() or {}
-    if not check_csrf():
-        return jsonify({"status": "error", "message": "Invalid CSRF token."}), 400
-    token = data.get("token", "").strip()
-    new_password = data.get("new_password", "").strip()
-
-    if not token or not new_password:
-        return jsonify({"status": "error", "message": "Token and new password are required."}), 400
-
-    reset_data = PasswordResetToken.query.get(token)
-    if not reset_data or reset_data.expires < datetime.utcnow().timestamp():
-        return jsonify({"status": "error", "message": "Reset token is invalid or expired."}), 400
-
-    password_error = is_strong_password(new_password)
-    if password_error:
-        return jsonify({"status": "error", "message": password_error}), 400
-
-    user = User.query.filter(db.func.lower(User.email) == reset_data.email.lower()).first()
-    if not user:
-        return jsonify({"status": "error", "message": "User not found."}), 404
-
-    # Store hashed password (do not save raw passwords)
-    user.password = generate_password_hash(new_password)
-    user.temp_password = None
-    db.session.delete(reset_data)
-    db.session.commit()
-
-    return jsonify({"status": "success", "message": "Your password has been reset successfully."}), 200
+    # Disabled endpoint. Password reset is handled manually by tech personnel.
+    return jsonify({"status": "error", "message": "Password reset is disabled. Contact tech@ardhiplus.co.ke"}), 403
 
 
 @app.route("/api/listings")
@@ -1619,7 +1758,7 @@ def api_login():
     # Evaluate password check and log result for debugging
     pw_ok = False
     try:
-        pw_ok = check_password_hash(user.password, password) if user else False
+        pw_ok = verify_password_hash(user.password, password) if user else False
     except Exception:
         pw_ok = False
     if not user or (not pw_ok and user.temp_password != password):
@@ -1656,6 +1795,14 @@ def api_login():
     message = f"Welcome back, {user.name}!"
     if user.temp_password == password:
         message = "Logged in with a temporary password. Please reset your password now."
+
+    # If login used a temporary password, clear it to avoid storing plaintext longer than necessary
+    try:
+        if user.temp_password == password:
+            user.temp_password = None
+            db.session.commit()
+    except Exception:
+        db.session.rollback()
 
     return jsonify({
         "status": "success",

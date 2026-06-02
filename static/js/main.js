@@ -341,7 +341,7 @@ async function handleForm(formId, apiPath, messageSelector, payloadMapper) {
           role: result.role,
           email: result.email
         }));
-        const redirectUrl = result.role && ["admin", "superadmin"].includes(result.role) ? "/ardhimwenyewe" : "/dashboard";
+        const redirectUrl = result.role && (result.role === 'tech' ? "/tech" : ["admin", "superadmin"].includes(result.role) ? "/ardhimwenyewe" : "/dashboard");
         setTimeout(() => (window.location.href = redirectUrl), 500);
       } else if (formId === "register-form") {
         setTimeout(() => (window.location.href = "/login"), 2000);
@@ -507,3 +507,23 @@ function init() {
 }
 
 document.addEventListener("DOMContentLoaded", init);
+
+// Prevent pasting into password fields globally (disable copy-paste for passwords)
+document.addEventListener('paste', function (e) {
+  try {
+    const tgt = e.target || e.srcElement;
+    if (tgt && tgt.tagName === 'INPUT' && tgt.type === 'password') {
+      e.preventDefault();
+      // optional: inform the user
+      const notice = 'Pasting into password fields is disabled for security.';
+      if (typeof window !== 'undefined' && window.alert) {
+        // use a non-intrusive toast in future; alert for now
+        // but avoid spamming alerts if many paste events
+        setTimeout(()=>alert(notice), 50);
+      }
+      return false;
+    }
+  } catch (err) {
+    // ignore
+  }
+});

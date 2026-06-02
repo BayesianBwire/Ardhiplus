@@ -1,0 +1,369 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="section-heading">
+  <h1>Maintenance Panel</h1>
+  <p>Authorized maintenance and analytics. Use with care.</p>
+  <div id="user-info" style="margin-top:0.75rem;padding:0.75rem;background:#1a1a1a;border-radius:0.5rem;font-size:0.875rem;color:#999"></div>
+</section>
+
+<section class="space-y-6">
+  <!-- Analytics Dashboard -->
+  <div class="card">
+    <h3>Platform Analytics</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin:1rem 0">
+      <div style="padding:0.75rem;background:#0a0a0a;border-radius:0.5rem">
+        <div style="font-size:0.875rem;color:#999">Total Users</div>
+        <div style="font-size:1.75rem;font-weight:bold;margin-top:0.25rem" id="total-users">-</div>
+      </div>
+      <a style="padding:0.75rem;background:#0a0a0a;border-radius:0.5rem;text-decoration:none;color:inherit" href="#pending-listings">
+        <div style="font-size:0.875rem;color:#999">Pending Listings</div>
+        <div style="font-size:1.75rem;font-weight:bold;margin-top:0.25rem" id="pending-count">-</div>
+      </a>
+      <a style="padding:0.75rem;background:#0a0a0a;border-radius:0.5rem;text-decoration:none;color:inherit" href="#verified-listings">
+        <div style="font-size:0.875rem;color:#999">Verified Listings</div>
+        <div style="font-size:1.75rem;font-weight:bold;margin-top:0.25rem" id="verified-count">-</div>
+      </a>
+      <div style="padding:0.75rem;background:#0a0a0a;border-radius:0.5rem">
+        <div style="font-size:0.875rem;color:#999">Total Listings</div>
+        <div style="font-size:1.75rem;font-weight:bold;margin-top:0.25rem" id="total-listings">-</div>
+      </div>
+      <div style="padding:0.75rem;background:#0a0a0a;border-radius:0.5rem">
+        <div style="font-size:0.875rem;color:#999">Survey Requests</div>
+        <div style="font-size:1.75rem;font-weight:bold;margin-top:0.25rem" id="total-surveys">-</div>
+      </div>
+      <div style="padding:0.75rem;background:#0a0a0a;border-radius:0.5rem">
+        <div style="font-size:0.875rem;color:#999">Active Admins</div>
+        <div style="font-size:1.75rem;font-weight:bold;margin-top:0.25rem" id="total-admins">-</div>
+      </div>
+    </div>
+    <canvas id="chart-users" style="max-width:100%;margin-top:1rem"></canvas>
+  </div>
+
+  <!-- User & Admin Management -->
+  <div class="card">
+    <h3>Users & Admins</h3>
+    <div style="margin-top:1rem">
+      <div style="display:flex;gap:0.5rem;margin-bottom:0.5rem">
+        <input id="user-search" type="text" placeholder="Search by name or email" style="flex:1;padding:0.5rem;background:#070707;border:1px solid #222;border-radius:0.25rem;color:#ddd">
+        <button id="user-search-btn" class="button">Search</button>
+      </div>
+    <div style="max-height:400px;overflow-y:auto">
+      <table style="width:100%;font-size:0.875rem">
+        <thead style="position:sticky;top:0;background:#0a0a0a;border-bottom:1px solid #333">
+          <tr>
+            <th style="text-align:left;padding:0.5rem">Name</th>
+            <th style="text-align:left;padding:0.5rem">Email</th>
+            <th style="text-align:left;padding:0.5rem">Role</th>
+            <th style="text-align:center;padding:0.5rem">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="users-list"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="card">
+    <h3>Quick Actions</h3>
+    <p class="muted">Actions below are restricted and audited.</p>
+    <div style="margin-top:0.75rem;display:flex;gap:0.5rem;flex-wrap:wrap">
+      <button id="tech-suspend-all" class="button button-danger">Suspend Platform</button>
+      <button id="view-audit" class="button">View Recent Audit</button>
+    </div>
+  </div>
+
+    <!-- Admin Management (Existing Admins + Add Admin) -->
+    <div class="card">
+      <h3>Admin Management</h3>
+      <div style="margin-top:1rem;display:flex;gap:1rem;flex-wrap:wrap">
+        <div style="flex:1;min-width:320px">
+          <h4>Existing Admins</h4>
+          <div style="max-height:240px;overflow:auto;margin-top:0.5rem">
+            <table style="width:100%;font-size:0.875rem">
+              <thead style="background:#0a0a0a;border-bottom:1px solid #222"><tr><th style="padding:0.5rem">ID</th><th style="padding:0.5rem">Name</th><th style="padding:0.5rem">Email</th><th style="padding:0.5rem">Role</th><th style="padding:0.5rem">Actions</th></tr></thead>
+              <tbody id="admins-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+        <div style="flex:1;min-width:320px">
+          <h4>Add Admin</h4>
+          <form id="add-admin-form" style="margin-top:0.5rem">
+            <label>Name<br><input type="text" name="name" required></label>
+            <label>Email<br><input type="email" name="email" required></label>
+            <label>Role<br>
+              <select name="role">
+                <option value="admin">Admin</option>
+                <option value="manager">Manager</option>
+                <option value="sec">Secretary</option>
+                <option value="treasurer">Treasurer</option>
+                <option value="tech">Tech</option>
+              </select>
+            </label>
+            <label>Password (optional)<br><input type="password" name="password"></label>
+            <button class="button" type="submit">Create Admin</button>
+          </form>
+          <div id="add-admin-result" style="margin-top:0.75rem;display:none"></div>
+        </div>
+      </div>
+    </div>
+
+  <!-- Reset User Password -->
+  <div class="card">
+    <h3>Reset User Password</h3>
+    <p class="muted">As tech you can reset passwords; this action is logged.</p>
+    <form id="reset-password-form">
+      <label>Email<br><input type="email" name="email" required></label>
+      <label>Temporary password<br><input type="text" name="temp_password" required></label>
+      <button class="button" type="submit">Reset Password</button>
+    </form>
+    <div id="reset-result" style="margin-top:0.5rem"></div>
+  </div>
+
+  <!-- Audit List -->
+  <div id="audit-list" class="card" style="display:none">
+    <h3>Recent Audit Log</h3>
+    <div id="audit-entries" style="max-height:300px;overflow-y:auto"></div>
+  </div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let jwt_token = localStorage.getItem('token');
+let currentUser = null;
+
+// Show logged-in user info
+function displayUserInfo() {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  currentUser = user;
+  const info = document.getElementById('user-info');
+  if(user && user.email) {
+    info.textContent = `Logged in as: ${user.name || user.email} (${user.role})`;
+  }
+}
+
+// Fetch analytics data
+async function loadAnalytics() {
+  if(!jwt_token) return;
+  const resp = await fetch('/api/admin/analytics', {
+    headers: {'Authorization': 'Bearer ' + jwt_token}
+  });
+  if(resp.ok) {
+    const data = await resp.json();
+    // Map admin analytics response to tech UI
+    document.getElementById('total-users').textContent = data.users || 0;
+    document.getElementById('total-listings').textContent = (data.listings && data.listings.total) || 0;
+    document.getElementById('total-surveys').textContent = (data.survey_requests && data.survey_requests.total) || 0;
+    document.getElementById('pending-count').textContent = (data.listings && data.listings.pending) || 0;
+    document.getElementById('verified-count').textContent = (data.listings && data.listings.verified) || 0;
+
+    // Load admin users count separately (admins/superadmin/manager/sec/treasurer/tech)
+    try {
+      const resp2 = await fetch('/api/admin/users', { headers: {'Authorization': 'Bearer ' + jwt_token} });
+      if(resp2.ok) {
+        const users = await resp2.json();
+        const adminRoles = ['admin','superadmin','manager','sec','treasurer','tech'];
+        const count = users.filter(u => adminRoles.includes((u.role||'').toLowerCase())).length;
+        document.getElementById('total-admins').textContent = count;
+      }
+    } catch(e){}
+
+    // Draw chart if trend data exists
+    if(data.overall_position && data.overall_position.trend) {
+      const ctx = document.getElementById('chart-users')?.getContext('2d');
+      if(ctx) {
+        new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: data.overall_position.trend.map((_, i) => `Day ${i}`),
+            datasets: [{
+              label: 'Verified listings (7-day trend)',
+              data: data.overall_position.trend,
+              borderColor: '#0ea5e9',
+              backgroundColor: 'rgba(14, 165, 233, 0.1)',
+              tension: 0.4
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: true, labels: { color: '#999' } } },
+            scales: { y: { grid: { color: '#333' }, ticks: { color: '#999' } }, x: { grid: { color: '#333' }, ticks: { color: '#999' } } }
+          }
+        });
+      }
+    }
+  }
+}
+
+// Fetch users list (supports optional query)
+async function loadUsers(q) {
+  if(!jwt_token) return;
+  let url = '/api/admin/users';
+  if(q) url += '?q=' + encodeURIComponent(q);
+  const resp = await fetch(url, {
+    headers: {'Authorization': 'Bearer ' + jwt_token}
+  });
+  if(resp.ok) {
+    const users = await resp.json();
+    const list = document.getElementById('users-list');
+    list.innerHTML = users.map(u => `
+      <tr style="border-bottom:1px solid #222">
+        <td style="padding:0.5rem">${u.name || '-'}</td>
+        <td style="padding:0.5rem;font-size:0.8rem">${u.email}</td>
+        <td style="padding:0.5rem;font-weight:bold;color:${u.role==='tech'?'#0ea5e9':u.role==='admin'?'#f59e0b':'#6b7280'}">${u.role}</td>
+        <td style="padding:0.5rem;text-align:center">
+          <button class="reset-btn" data-id="${u.id}" data-email="${u.email}" style="padding:0.25rem 0.5rem;font-size:0.75rem;background:#0ea5e9;color:#000;border:none;border-radius:0.25rem;cursor:pointer">Reset Pass</button>
+        </td>
+      </tr>
+    `).join('');
+    
+    // Attach reset handlers
+    document.querySelectorAll('.reset-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const id = this.dataset.id;
+        const email = this.dataset.email;
+        const newPass = prompt(`Enter new password for ${email}:`);
+        if(newPass) resetPasswordById(id, newPass);
+      });
+    });
+  }
+}
+
+// Reset password for user by id (JWT-capable)
+async function resetPasswordById(user_id, password) {
+  if(!jwt_token) return;
+  const resp = await fetch(`/api/admin/users/${user_id}/reset_password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + jwt_token
+    },
+    body: JSON.stringify({password})
+  });
+  const result = await resp.json();
+  alert(result.message || (result.status ? result.status : 'Password reset complete'));
+  // reload users to reflect any changes
+  loadUsers(document.getElementById('user-search')?.value || '');
+}
+
+// Load admins into admin-management table
+async function loadAdmins() {
+  if(!jwt_token) return;
+  const resp = await fetch('/api/admin/users', { headers: {'Authorization': 'Bearer ' + jwt_token} });
+  if(!resp.ok) return;
+  const users = await resp.json();
+  const adminRoles = ['admin','superadmin','manager','sec','treasurer','tech'];
+  const admins = users.filter(u => adminRoles.includes((u.role||'').toLowerCase()));
+  document.getElementById('admins-table-body').innerHTML = admins.map(a => `
+    <tr style="border-bottom:1px solid #222">
+      <td style="padding:0.5rem">${a.id}</td>
+      <td style="padding:0.5rem">${a.name || '-'}</td>
+      <td style="padding:0.5rem;font-size:0.8rem">${a.email}</td>
+      <td style="padding:0.5rem">${a.role}</td>
+      <td style="padding:0.5rem;text-align:center">
+        <button class="admin-update-btn" data-id="${a.id}" style="margin-right:0.25rem">Update</button>
+        <button class="admin-delete-btn" data-id="${a.id}">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+
+  document.querySelectorAll('.admin-delete-btn').forEach(btn => {
+    btn.addEventListener('click', async function(){
+      if(!confirm('Confirm delete admin?')) return;
+      const id = this.dataset.id;
+      const res = await fetch(`/api/admin/users/${id}`, { method: 'DELETE', headers: {'Authorization': 'Bearer ' + jwt_token} });
+      const j = await res.json(); alert(j.message || j.status); loadAdmins(); loadUsers();
+    });
+  });
+}
+
+// Add admin form handler
+document.getElementById('add-admin-form')?.addEventListener('submit', async function(ev){
+  ev.preventDefault();
+  const fd = new FormData(this);
+  const payload = {name: fd.get('name'), email: fd.get('email'), role: fd.get('role'), password: fd.get('password')};
+  const resp = await fetch('/api/admin/users', { method: 'POST', headers: {'Content-Type':'application/json','Authorization':'Bearer '+jwt_token}, body: JSON.stringify(payload)});
+  const j = await resp.json();
+  const resEl = document.getElementById('add-admin-result');
+  resEl.style.display = 'block'; resEl.textContent = j.status === 'ok' ? `Created ${j.email}` : (j.message || JSON.stringify(j));
+  if(resp.ok) { this.reset(); loadAdmins(); loadUsers(); }
+});
+
+// Reset password for user
+async function resetPassword(email, temp_password) {
+  if(!jwt_token) return;
+  const resp = await fetch('/api/admin/reset_user_password', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + jwt_token,
+      'X-CSRF-Token': window.CSRF_TOKEN || ''
+    },
+    body: JSON.stringify({email, temp_password})
+  });
+  const result = await resp.json();
+  alert(result.message || 'Password reset complete');
+}
+
+// Audit log
+document.getElementById('view-audit')?.addEventListener('click', async function(){
+  if(!jwt_token) return;
+  const card = document.getElementById('audit-list');
+  card.style.display = 'block';
+  const resp = await fetch('/api/audit', {
+    headers: {'Authorization': 'Bearer ' + jwt_token}
+  });
+  if(resp.ok) {
+    const data = await resp.json();
+    document.getElementById('audit-entries').innerHTML = data.slice(0,50).map(e=>`
+      <div style="padding:0.5rem;border-bottom:1px solid #222;font-size:0.875rem">
+        <strong>${e.user_id||'system'}</strong>: ${e.action} 
+        <small style="color:#999;display:block;margin-top:0.25rem">${e.created_at}</small>
+      </div>
+    `).join('');
+  } else {
+    document.getElementById('audit-entries').textContent = 'Failed to load audit log';
+  }
+});
+
+// Suspend platform
+document.getElementById('tech-suspend-all')?.addEventListener('click', async function(){
+  if(!jwt_token || !confirm('Confirm global suspend?')) return;
+  const resp = await fetch('/api/admin/suspend_all', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + jwt_token,
+      'X-CSRF-Token': window.CSRF_TOKEN || ''
+    },
+    body: JSON.stringify({reason: 'maintenance panel action'})
+  });
+  const j = await resp.json();
+  alert(j.message || j.status);
+});
+
+// Reset password form
+document.getElementById('reset-password-form')?.addEventListener('submit', async function(ev){
+  ev.preventDefault();
+  const fd = new FormData(this);
+  const email = fd.get('email');
+  const temp_password = fd.get('temp_password');
+  await resetPassword(email, temp_password);
+  this.reset();
+});
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function(){
+  displayUserInfo();
+  loadAnalytics();
+  loadUsers();
+  loadAdmins();
+  document.getElementById('user-search-btn')?.addEventListener('click', function(){
+    const q = document.getElementById('user-search')?.value || '';
+    loadUsers(q);
+  });
+  document.getElementById('user-search')?.addEventListener('keyup', function(e){ if(e.key === 'Enter') document.getElementById('user-search-btn')?.click(); });
+});
+</script>
+
+{% endblock %}
+

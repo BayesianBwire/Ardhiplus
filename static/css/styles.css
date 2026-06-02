@@ -319,6 +319,40 @@ nav a:hover,
   gap: 1rem;
 }
 
+/* Stylish position/stat card */
+.position-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: 1rem;
+  background: linear-gradient(180deg, rgba(12,34,60,0.6), rgba(8,18,38,0.6));
+  border: 1px solid rgba(214,179,78,0.08);
+  box-shadow: 0 8px 30px rgba(2,6,23,0.6);
+}
+.position-card .left {
+  display:flex;flex-direction:column;gap:0.25rem
+}
+.position-card h4{margin:0;font-size:0.95rem;color:#e6eef9}
+.position-card .sub{color:#93a4bf;font-size:0.9rem}
+.position-card .center{font-size:0.95rem;color:#cfe7ff}
+.position-value{
+  font-size:1.7rem;font-weight:700;color:#081227;background:#d6b34e;padding:0.25rem 0.6rem;border-radius:0.6rem}
+.position-change{display:flex;align-items:center;gap:0.35rem;font-weight:700;color:#10b981}
+.position-change .arrow{font-size:1.05rem}
+
+/* change styles */
+.position-change.change-up{color:#10b981;transform:translateY(0);transition:transform .35s ease}
+.position-change.change-up .arrow{color:#10b981}
+.position-change.change-down{color:#ef4444}
+.position-change.change-up {animation: popUp .6s ease}
+.position-change.change-down {animation: popDown .6s ease}
+
+@keyframes popUp{0%{transform:translateY(8px);opacity:0}50%{transform:translateY(-4px);opacity:1}100%{transform:translateY(0);opacity:1}}
+@keyframes popDown{0%{transform:translateY(-8px);opacity:0}50%{transform:translateY(4px);opacity:1}100%{transform:translateY(0);opacity:1}}
+
+
 .card h3,
 .feature-card h2,
 .dashboard-card h2,

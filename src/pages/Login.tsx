@@ -36,9 +36,8 @@ function Login() {
         </button>
       </form>
       <div className="mt-4 text-center text-sm text-slate-400">
-        <Link to="/forgot-password" className="text-sky-300 hover:text-sky-200">
-          Forgot password?
-        </Link>
+        <span>For password assistance contact </span>
+        <a href="mailto:tech@ardhiplus.co.ke" className="text-sky-300 hover:text-sky-200">tech@ardhiplus.co.ke</a>
       </div>
       <p className="mt-6 text-center text-sm text-slate-400">
         Don’t have an account?{' '}
