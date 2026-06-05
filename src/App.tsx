@@ -19,7 +19,19 @@ import PropertyDetail from './pages/PropertyDetail';
 import PostProperty from './pages/PostProperty';
 import FAQ from './pages/FAQ';
 import Privacy from './pages/Privacy';
-
+import Terms from './pages/Terms';
+import ReportFraud from './pages/ReportFraud';
+import Messages from './pages/Messages';
+import Leads from './pages/Leads';
+import Viewings from './pages/Viewings';
+import Verification from './pages/Verification';
+import Analytics from './pages/Analytics';
+import Documents from './pages/Documents';
+import Commission from './pages/Commission';
+import Settings from './pages/Settings';
+import MyListings from './pages/MyListings';
+import HelpCenter from './pages/HelpCenter';
+import BookSurvey from './pages/BookSurvey';
 import VerifyEmail from './pages/VerifyEmail';
 
 function App() {
@@ -30,6 +42,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/listings" element={<Listings />} />
+          <Route path="/marketplace" element={<Listings />} />
           <Route path="/favorites" element={<Favorites />} />
           <Route path="/agents" element={<Agents />} />
           <Route path="/marketplace-stats" element={<MarketplaceStats />} />
@@ -40,7 +53,19 @@ function App() {
           <Route path="/contact" element={<Contact />} />
           <Route path="/faq" element={<FAQ />} />
           <Route path="/privacy" element={<Privacy />} />
-          <Route path="/book-survey" element={<require('./pages/BookSurvey').default />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/help-center" element={<HelpCenter />} />
+          <Route path="/report-fraud" element={<ReportFraud />} />
+          <Route path="/my-listings" element={<MyListings />} />
+          <Route path="/leads" element={<Leads />} />
+          <Route path="/messages" element={<Messages />} />
+          <Route path="/viewings" element={<Viewings />} />
+          <Route path="/verification" element={<Verification />} />
+          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/documents" element={<Documents />} />
+          <Route path="/commission" element={<Commission />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/book-survey" element={<BookSurvey />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />

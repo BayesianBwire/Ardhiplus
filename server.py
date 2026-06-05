@@ -5,7 +5,9 @@ import json
 import re
 import secrets
 import uuid
-from flask import Flask, jsonify, redirect, render_template, request, url_for, session, g
+from flask import Flask, jsonify, redirect, render_template, request, url_for, session, g, send_from_directory, make_response
+import csv
+import io
 import os
 import jwt
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -420,6 +422,16 @@ class PasswordResetToken(db.Model):
             "temp_password": self.temp_password,
             "expires": self.expires,
         }
+
+
+class EmailVerificationToken(db.Model):
+    token = db.Column(db.String(255), primary_key=True)
+    email = db.Column(db.String(255), nullable=False)
+    code = db.Column(db.String(50), nullable=True)
+    expires = db.Column(db.Float, nullable=False)
+
+    def to_dict(self):
+        return {"token": self.token, "email": self.email, "code": self.code, "expires": self.expires}
 
 
 
@@ -1080,6 +1092,95 @@ def dashboard():
     return render_template("dashboard.html", page="dashboard")
 
 
+@app.route("/my-listings")
+@login_required
+def my_listings():
+    try:
+        if g.user and g.user.email:
+            listings = Listing.query.filter_by(seller_email=g.user.email).order_by(Listing.created_at.desc()).all()
+        else:
+            listings = []
+    except Exception:
+        listings = []
+    return render_template("my_listings.html", listings=[l.to_dict() for l in listings], page="my-listings")
+
+
+@app.route("/leads")
+@login_required
+def leads_page():
+    try:
+        # Find leads related to this user's listings when possible
+        listings = Listing.query.filter_by(seller_email=g.user.email).all() if g.user and g.user.email else []
+        titles = [l.title for l in listings]
+        if titles:
+            leads = InterestRequest.query.filter(InterestRequest.listing_title.in_(titles)).order_by(InterestRequest.requested_at.desc()).all()
+        else:
+            leads = []
+    except Exception:
+        leads = []
+    return render_template("leads.html", leads=[i.to_dict() for i in leads], page="leads")
+
+
+@app.route("/viewings")
+@login_required
+def viewings_page():
+    try:
+        # Use survey requests as scheduled viewings where owner matches
+        if g.user and g.user.name:
+            visits = SurveyRequest.query.filter_by(owner_name=g.user.name).order_by(SurveyRequest.requested_at.desc()).all()
+        else:
+            visits = []
+    except Exception:
+        visits = []
+    return render_template("viewings.html", visits=[v.to_dict() for v in visits], page="viewings")
+
+
+@app.route("/verification")
+@login_required
+def verification_page():
+    try:
+        # Show survey requests for user's listings
+        listings = Listing.query.filter_by(seller_email=g.user.email).all() if g.user and g.user.email else []
+        titles = [l.title for l in listings]
+        if titles:
+            surveys = SurveyRequest.query.filter(SurveyRequest.property_title.in_(titles)).order_by(SurveyRequest.requested_at.desc()).all()
+        else:
+            surveys = []
+    except Exception:
+        surveys = []
+    return render_template("verification.html", surveys=[s.to_dict() for s in surveys], page="verification")
+
+
+@app.route("/messages")
+@login_required
+def messages_page():
+    try:
+        # Provide a safe summary count instead of decrypting messages here
+        count = Message.query.filter_by(recipient_id=g.user.id).count() if g.user else 0
+        convs = []
+    except Exception:
+        count = 0
+        convs = []
+    return render_template("messages.html", count=count, conversations=convs, page="messages")
+
+
+@app.route("/commission")
+@login_required
+def commission_page():
+    try:
+        # Basic commission snapshot stub: count of sold listings for this seller
+        sold = Listing.query.filter_by(seller_email=g.user.email, badge="Sold").count() if g.user else 0
+    except Exception:
+        sold = 0
+    return render_template("commission.html", sold_count=sold, page="commission")
+
+
+@app.route("/settings")
+@login_required
+def settings_page():
+    return render_template("settings.html", page="settings")
+
+
 @app.route("/post-property")
 def post_property():
     return render_template("post_property.html", page="post-property")
@@ -1522,6 +1623,117 @@ def api_listings():
     return jsonify(visible_listings)
 
 
+@app.route("/api/properties")
+def api_properties():
+    try:
+        if getattr(g, "user", None) and g.user.email:
+            listings = Listing.query.filter_by(seller_email=g.user.email).order_by(Listing.created_at.desc()).all()
+        else:
+            listings = Listing.query.order_by(Listing.created_at.desc()).all()
+        result = []
+        for listing in listings:
+            if is_sample_listing(listing):
+                continue
+            result.append(listing.to_dict())
+        return jsonify(result)
+    except Exception:
+        return jsonify([])
+
+
+@app.route("/api/property/<int:listing_id>", methods=["PUT", "DELETE"])
+@login_required
+def api_property_modify(listing_id):
+    listing = Listing.query.get(listing_id)
+    if not listing:
+        return jsonify({"status": "error", "message": "Listing not found."}), 404
+
+    # Ensure only owner or admin can modify/delete
+    if g.user and g.user.role != 'admin' and listing.seller_email and g.user.email != listing.seller_email:
+        return jsonify({"status": "error", "message": "Forbidden."}), 403
+
+    if request.method == "DELETE":
+        try:
+            db.session.delete(listing)
+            db.session.commit()
+            return jsonify({"status": "ok"})
+        except SQLAlchemyError:
+            db.session.rollback()
+            return jsonify({"status": "error"}), 500
+
+    # PUT - update
+    data = request.get_json() or {}
+    allowed = ("title", "location", "price", "description", "verified", "badge")
+    for k in allowed:
+        if k in data:
+            setattr(listing, k, data[k])
+    try:
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        return jsonify({"status": "error"}), 500
+    return jsonify(listing.to_dict())
+
+
+@app.route("/api/leads")
+@login_required
+def api_leads():
+    try:
+        listings = Listing.query.filter_by(seller_email=g.user.email).all() if g.user and g.user.email else []
+        titles = [l.title for l in listings]
+        if titles:
+            leads = InterestRequest.query.filter(InterestRequest.listing_title.in_(titles)).order_by(InterestRequest.requested_at.desc()).all()
+        else:
+            leads = []
+        return jsonify([l.to_dict() for l in leads])
+    except Exception:
+        return jsonify([])
+
+
+@app.route('/api/leads/<int:lead_id>/read', methods=['POST'])
+@login_required
+def api_lead_mark_read(lead_id):
+    lead = InterestRequest.query.get(lead_id)
+    if not lead:
+        return jsonify({"status": "error", "message": "Lead not found."}), 404
+    try:
+        lead.status = 'Read'
+        db.session.commit()
+        return jsonify({"status": "ok"})
+    except SQLAlchemyError:
+        db.session.rollback()
+        return jsonify({"status": "error"}), 500
+
+
+@app.route('/api/leads/<int:lead_id>', methods=['DELETE'])
+@login_required
+def api_lead_delete(lead_id):
+    lead = InterestRequest.query.get(lead_id)
+    if not lead:
+        return jsonify({"status": "error", "message": "Lead not found."}), 404
+    try:
+        db.session.delete(lead)
+        db.session.commit()
+        return jsonify({"status": "ok"})
+    except SQLAlchemyError:
+        db.session.rollback()
+        return jsonify({"status": "error"}), 500
+
+
+@app.route('/api/leads/mark_all_read', methods=['POST'])
+@login_required
+def api_leads_mark_all():
+    try:
+        listings = Listing.query.filter_by(seller_email=g.user.email).all() if g.user and g.user.email else []
+        titles = [l.title for l in listings]
+        if titles:
+            InterestRequest.query.filter(InterestRequest.listing_title.in_(titles)).update({"status": 'Read'})
+            db.session.commit()
+        return jsonify({"status": "ok"})
+    except SQLAlchemyError:
+        db.session.rollback()
+        return jsonify({"status": "error"}), 500
+
+
 @app.route("/api/me")
 @jwt_required
 def api_me():
@@ -1539,6 +1751,47 @@ def api_listing(listing_id):
     if not listing:
         return jsonify({"status": "error", "message": "Listing not found."}), 404
     return jsonify(listing.to_dict())
+
+
+@app.route('/download/uploads/<path:filename>')
+def download_upload(filename: str):
+    """Serve uploaded documents (stored in public/uploads) as attachments."""
+    uploads_dir = os.path.join(app.root_path, 'public', 'uploads')
+    # prevent directory traversal by using send_from_directory
+    try:
+        return send_from_directory(uploads_dir, filename, as_attachment=True)
+    except Exception:
+        abort(404)
+
+
+@app.route('/api/export/listings.csv')
+@login_required
+def export_listings_csv():
+    """Export listing records as CSV attachment."""
+    si = io.StringIO()
+    writer = csv.writer(si)
+    writer.writerow(["id", "title", "location", "type", "size", "price", "verified", "badge", "seller_email", "created_at"])
+    for L in Listing.query.order_by(Listing.created_at.desc()).all():
+        writer.writerow([L.id, L.title, L.location, L.type, L.size, L.price, str(bool(L.verified)), L.badge, L.seller_email or "", L.created_at.isoformat()])
+    output = make_response(si.getvalue())
+    output.headers['Content-Disposition'] = 'attachment; filename=listings.csv'
+    output.headers['Content-Type'] = 'text/csv; charset=utf-8'
+    return output
+
+
+@app.route('/api/export/leads.csv')
+@login_required
+def export_leads_csv():
+    """Export interest/lead records as CSV attachment."""
+    si = io.StringIO()
+    writer = csv.writer(si)
+    writer.writerow(["id", "listing_title", "buyer_name", "buyer_email", "buyer_phone", "status", "message", "requested_at"])
+    for R in InterestRequest.query.order_by(InterestRequest.requested_at.desc()).all():
+        writer.writerow([R.id, R.listing_title, R.buyer_name, R.buyer_email, R.buyer_phone, R.status, (R.message or ""), R.requested_at.isoformat()])
+    output = make_response(si.getvalue())
+    output.headers['Content-Disposition'] = 'attachment; filename=leads.csv'
+    output.headers['Content-Type'] = 'text/csv; charset=utf-8'
+    return output
 
 
 @app.route("/api/post-listing", methods=["POST"])
@@ -1561,8 +1814,17 @@ def api_post_listing():
     seller_name = data.get("seller_name", "").strip()
     seller_phone = data.get("seller_phone", "").strip()
     coords = data.get("coords") or {}
+    # If submitted as multipart/form-data, allow coords_lat / coords_lng fallback
     if not isinstance(coords, dict):
-        coords = {}
+        try:
+            lat = data.get("coords_lat")
+            lng = data.get("coords_lng")
+            if lat is not None and lng is not None:
+                coords = {"lat": float(lat), "lng": float(lng)}
+            else:
+                coords = {}
+        except Exception:
+            coords = {}
     images = []
     # Handle file uploads
     upload_folder = os.path.join("public", "uploads")

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="panel">
+  <h1>Upcoming Visits / Viewings</h1>
+  {% if visits and visits|length > 0 %}
+    <ul>
+      {% for v in visits %}
+        <li>{{ v.date if v.requested_at is none else v.requested_at }} — {{ v.property_title }} — {{ v.status }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No scheduled visits found.</p>
+  {% endif %}
+  <p><a href="/dashboard">Back to dashboard</a></p>
+</div>
+{% endblock %}

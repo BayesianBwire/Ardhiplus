@@ -1,13 +1,11 @@
 import { Link, NavLink } from 'react-router-dom';
 
 const navItems = [
-  { label: 'Home', path: '/' },
-  { label: 'Listings', path: '/listings' },
+  { label: 'Marketplace', path: '/listings' },
   { label: 'Agents', path: '/agents' },
   { label: 'Services', path: '/services' },
-  { label: 'About', path: '/about' },
-  { label: 'Contact', path: '/contact' },
-  { label: 'FAQ', path: '/faq' },
+  { label: 'Help Center', path: '/help-center' },
+  { label: 'Dashboard', path: '/dashboard' },
 ];
 
 function Navbar() {
@@ -38,6 +36,12 @@ function Navbar() {
             title="View favorites"
           >
             ❤️ Favorites
+          </Link>
+          <Link
+            to="/dashboard"
+            className="rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-200 transition hover:border-sky-400 hover:text-white"
+          >
+            Dashboard
           </Link>
           <Link
             to="/post-property"

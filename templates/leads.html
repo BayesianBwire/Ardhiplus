@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="panel">
+  <h1>Leads</h1>
+  {% if leads and leads|length > 0 %}
+    <ul>
+      {% for l in leads %}
+        <li><strong>{{ l.buyer_name }}</strong> — {{ l.listing_title }} — {{ l.status }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No leads found for your listings.</p>
+  {% endif %}
+  <p>
+    <a href="/api/export/leads.csv" class="button">Download leads CSV</a>
+    <a href="/dashboard" class="button" style="margin-left:8px;">Back to dashboard</a>
+  </p>
+</div>
+{% endblock %}

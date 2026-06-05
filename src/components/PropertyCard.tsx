@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useFavorites } from '../hooks/useFavorites';
 import type { Listing } from '../data/mockListings';
@@ -11,10 +11,23 @@ function PropertyCard({ listing }: PropertyCardProps) {
   const { isFavorite, toggleFavorite } = useFavorites();
   const isFav = isFavorite(listing.id);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     setIsLoggedIn(Boolean(localStorage.getItem('token')));
   }, []);
+
+  const handleFavoriteClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!isLoggedIn) {
+      navigate('/login');
+      return;
+    }
+
+    toggleFavorite(listing.id);
+  };
 
   return (
     <article className="relative group overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/90 shadow-soft transition hover:-translate-y-1 hover:border-sky-500">
@@ -36,9 +49,9 @@ function PropertyCard({ listing }: PropertyCardProps) {
         )}
         {/* Favorite Button */}
         <button
-          onClick={() => toggleFavorite(listing.id)}
+          onClick={handleFavoriteClick}
           className="absolute top-3 right-3 rounded-full bg-slate-950/80 p-2 transition hover:bg-slate-950 backdrop-blur-sm"
-          title={isFav ? 'Remove from favorites' : 'Add to favorites'}
+          title={isLoggedIn ? (isFav ? 'Remove from favorites' : 'Add to favorites') : 'Login to save this listing'}
         >
           <span className={`text-lg transition ${isFav ? 'text-rose-400' : 'text-slate-400 hover:text-rose-400'}`}>
             {isFav ? '❤️' : '🤍'}
@@ -73,7 +86,7 @@ function PropertyCard({ listing }: PropertyCardProps) {
           </Link>
           {isLoggedIn ? (
             <Link
-              to="/services"
+              to="/book-survey"
               className="rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-200 transition hover:border-sky-400 hover:text-white"
             >
               Request survey

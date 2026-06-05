@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="panel">
+  <h1>Verification</h1>
+  {% if surveys and surveys|length > 0 %}
+    <ul>
+      {% for s in surveys %}
+        <li>{{ s.property_title }} — {{ s.status }} — Requested at {{ s.requested_at }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No verification actions pending for your listings.</p>
+  {% endif %}
+  <p><a href="/dashboard">Back to dashboard</a></p>
+</div>
+{% endblock %}

@@ -19,85 +19,56 @@
   <p>
     {% if current_user %}
       {% if current_user.role == 'agent' %}
-        Manage client listings, schedule viewings, and share verified offers with buyers.
-      {% elif current_user.role == 'broker' %}
-        Manage agency property portfolios, client approvals, and broker sales workflows.
-      {% elif current_user.role == 'land_owner' %}
-        Track your land listings, verification status, and direct buyer interest.
+        Manage client listings, leads, and property verification without placeholder content.
+      {% elif current_user and current_user.role == 'broker' %}
+        Oversee your brokerage workflow, listings, and verification operations.
+      {% elif current_user and current_user.role == 'land_owner' %}
+        Track your land listings, verification progress, and buyer interest.
       {% else %}
-        Manage your listings, buyer inquiries, and sales resources from one dashboard.
+        Manage your property listings, inquiries, and verification status.
       {% endif %}
     {% else %}
-      Manage your listings, buyer inquiries, and sales resources from one dashboard.
+      Manage your property listings, inquiries, and verification status.
     {% endif %}
   </p>
 </section>
 
 <div class="dashboard-grid">
-  <article class="dashboard-card">
-    <h2>{% if current_user and current_user.role == 'agent' %}Agent listings{% elif current_user and current_user.role == 'broker' %}Broker listings{% elif current_user and current_user.role == 'land_owner' %}Landowner listings{% else %}My listings{% endif %}</h2>
-    <p>See all the properties you manage, including sales status, verification, and buyer requests.</p>
-  </article>
-  <article class="dashboard-card">
-    <h2>{% if current_user and current_user.role == 'agent' %}Client offers{% else %}Edit or remove listings{% endif %}</h2>
-    <p>{% if current_user and current_user.role == 'agent' %}Update buyer proposals and close deals faster with approved agent support.{% else %}Update listing details, adjust prices, or remove properties from the marketplace.{% endif %}</p>
-  </article>
-  <article class="dashboard-card">
-    <h2>{% if current_user and current_user.role == 'land_owner' %}Survey & verification{% else %}Views and inquiries{% endif %}</h2>
-    <p>{% if current_user and current_user.role == 'land_owner' %}Monitor survey status, land verification, and buyer inquiries for your property.{% else %}Review listing views, buyer questions, and lead interest from serious buyers.{% endif %}</p>
-  </article>
-  <article class="dashboard-card">
-    <h2>{% if current_user and current_user.role == 'broker' %}Broker resources{% else %}Sales training{% endif %}</h2>
-    <p>{% if current_user and current_user.role == 'broker' %}Access tips for brokerage success, client conversion, and agency growth.{% else %}Access guidance for closing property deals, listing homes, and working smarter in sales.{% endif %}</p>
-  </article>
+  <a href="/my-listings" class="dashboard-card" style="display:block;padding:12px;border-radius:12px;">
+    <h2>Listings</h2>
+    <p>View and manage your properties, including verification status and buyer activity.</p>
+  </a>
+  <a href="/leads" class="dashboard-card" style="display:block;padding:12px;border-radius:12px;">
+    <h2>Leads</h2>
+    <p>Track inquiries, schedule viewings, and follow up with serious buyers.</p>
+  </a>
+  <a href="/verification" class="dashboard-card" style="display:block;padding:12px;border-radius:12px;">
+    <h2>Verification</h2>
+    <p>Manage document uploads, audit status, and compliance checks from the verification center.</p>
+  </a>
+  <a href="/post-property" class="dashboard-card" style="display:block;padding:12px;border-radius:12px;">
+    <h2>Quick actions</h2>
+    <p>Post properties, update listings, and stay aligned with buyer requests.</p>
+  </a>
+</div>
+
+<div style="margin-top:18px;">
+  <h3>Downloads & exports</h3>
+  <p>Export your data or download uploaded documents.</p>
+  <p style="margin-top:8px;">
+    <a class="button" href="/api/export/listings.csv">Download listings CSV</a>
+    <a class="button" href="/api/export/leads.csv" style="margin-left:8px;">Download leads CSV</a>
+    <a class="button" href="/documents" style="margin-left:8px;">Open documents</a>
+  </p>
 </div>
 
 <section class="form-panel">
   <h2>Quick actions</h2>
   <ul class="feature-list">
-    <li>Post a new property for approval and verification.</li>
-    <li>{% if current_user and current_user.role == 'agent' %}Share buyer-ready offers and manage field visits.{% elif current_user and current_user.role == 'broker' %}Coordinate agency listings and monitor commission progress.{% elif current_user and current_user.role == 'land_owner' %}Track buyer interest and confirm survey review status.{% else %}Submit your property details and monitor buyer interest.{% endif %}</li>
-    <li>Stay connected with verified buyers and survey teams.</li>
+    <li>Post a new property for verification and approval.</li>
+    <li>Manage leads, viewings, and document status in real time.</li>
+    <li>Keep verification and fraud checks current for each listing.</li>
   </ul>
   <p class="mt-5"><a href="/post-property" class="button button-primary">Post a Property</a></p>
-</section>
-
-<!-- Verification Center -->
-<section class="dashboard-panel verification-center mt-8">
-  <h2>Verification Center</h2>
-  <ul class="verification-list">
-    <li><strong>Title Deed Status:</strong> <span class="status-ok">Verified Ownership</span></li>
-    <li><strong>Survey Verification:</strong> <span class="status-ok">Boundary Confirmed</span></li>
-    <li><strong>County Verification:</strong> <span class="status-ok">County Records Reviewed</span></li>
-    <li><strong>Ownership Review:</strong> <span class="status-ok">Complete</span></li>
-    <li><strong>GPS Boundary:</strong> <span class="status-ok">Confirmed</span></li>
-    <li><strong>Fraud Risk Assessment:</strong> <span class="status-low">Low</span></li>
-    <li><strong>Verification Timeline:</strong> <span>2024-05-01 → 2024-05-10</span></li>
-    <li><strong>Verification Officer:</strong> <span>Jane Mwangi</span></li>
-    <li><strong>Last Review Date:</strong> <span>2026-05-20</span></li>
-  </ul>
-</section>
-
-<!-- Property Health System -->
-<section class="dashboard-panel property-health mt-8">
-  <h2>Property Health</h2>
-  <div class="health-score">
-    <span class="score">92</span><span class="outof">/100</span>
-  </div>
-  <ul class="health-breakdown">
-    <li><strong>Listing Completeness:</strong> Excellent</li>
-    <li><strong>Image Quality:</strong> Good</li>
-    <li><strong>Verification Level:</strong> Full</li>
-    <li><strong>Buyer Engagement:</strong> High</li>
-    <li><strong>Price Competitiveness:</strong> Competitive</li>
-  </ul>
-  <div class="health-suggestions mt-3">
-    <strong>Suggestions:</strong>
-    <ul>
-      <li>Add more images</li>
-      <li>Complete ownership verification</li>
-      <li>Improve property description</li>
-    </ul>
-  </div>
 </section>
 {% endblock %}

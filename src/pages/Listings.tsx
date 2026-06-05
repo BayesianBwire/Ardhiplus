@@ -13,8 +13,9 @@ function Listings() {
   const [propertyType, setPropertyType] = useState<string>('All');
   const [county, setCounty] = useState<string>('All');
   const [bedrooms, setBedrooms] = useState<string>('All');
-  const [verifiedOnly, setVerifiedOnly] = useState(true);
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [sortBy, setSortBy] = useState<string>('newest');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Fetch listings
   useEffect(() => {
@@ -59,6 +60,18 @@ function Listings() {
       filtered = filtered.filter((l) => l.bedrooms === bedroomNum);
     }
 
+    // Search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (l) =>
+          l.title.toLowerCase().includes(query) ||
+          l.location.toLowerCase().includes(query) ||
+          l.description.toLowerCase().includes(query) ||
+          l.county.toLowerCase().includes(query)
+      );
+    }
+
     // Verified only filter
     if (verifiedOnly) {
       filtered = filtered.filter((l) => l.verified);
@@ -83,12 +96,59 @@ function Listings() {
 
   return (
     <section className="space-y-8">
-      <div className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-8 shadow-soft">
-        <h1 className="text-3xl font-semibold text-white">Property Marketplace</h1>
-        <p className="mt-3 max-w-2xl text-slate-400">
-          Browse land and property listings that combine real estate offers with professional surveying verification
-          and risk protection.
-        </p>
+      <div className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-10 shadow-soft">
+        <div className="max-w-4xl space-y-6">
+          <span className="inline-flex rounded-full bg-sky-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-sky-300">
+            Public marketplace
+          </span>
+          <div className="space-y-3">
+            <h1 className="text-4xl font-semibold text-white sm:text-5xl">Browse verified land and property listings openly.</h1>
+            <p className="text-lg leading-8 text-slate-400">
+              Explore the marketplace without logging in. Login only when you want to save favorites, request a survey,
+              or contact the seller.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            {['Land', 'Residential', 'Commercial'].map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => setPropertyType(type)}
+                className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                  propertyType === type
+                    ? 'border-sky-500 bg-sky-500/10 text-sky-300'
+                    : 'border-slate-700 text-slate-300 hover:border-slate-500 hover:text-white'
+                }`}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-[1.5fr_0.5fr]">
+            <div>
+              <label htmlFor="marketplace-search" className="sr-only">
+                Search listings
+              </label>
+              <input
+                id="marketplace-search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by title, location, county, or description"
+                className="w-full rounded-3xl border border-slate-700 bg-slate-800 px-5 py-4 text-white placeholder:text-slate-500 focus:border-sky-400 focus:outline-none"
+              />
+            </div>
+            <div className="rounded-3xl border border-slate-700 bg-slate-950 p-4 text-slate-300">
+              <p className="text-sm font-semibold text-slate-100">Browse tips</p>
+              <ul className="mt-3 space-y-2 text-sm text-slate-400">
+                <li>Search or filter by county, price, type, and bedrooms.</li>
+                <li>Verified listings are marked and reviewed by survey teams.</li>
+                <li>Login to save favorites or request seller contact.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Filters */}
@@ -220,7 +280,7 @@ function Listings() {
       {/* Results */}
       <div className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6 shadow-soft">
         <p className="text-sm text-slate-400">
-          Showing {filteredListings.length} verified properties by default. All users can browse freely, but you must login to request a listing.
+          Showing {filteredListings.length} listings. Browse openly with public search, then login for favorites, survey requests, and seller contact.
         </p>
       </div>
 

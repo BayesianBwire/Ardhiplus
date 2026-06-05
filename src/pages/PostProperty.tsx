@@ -1,4 +1,5 @@
-import { FormEvent, useState } from 'react';
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
+import FileUploader from '../components/FileUploader';
 
 function parseCoords(value: string) {
   const parts = value.split(',').map((part) => part.trim());
@@ -22,13 +23,24 @@ function PostProperty() {
   const [sellerName, setSellerName] = useState('');
   const [sellerPhone, setSellerPhone] = useState('');
   const [coordsInput, setCoordsInput] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState<'success' | 'error' | ''>('');
+  const [draftStatus, setDraftStatus] = useState<'saving' | 'saved' | ''>('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState('');
+  const saveTimer = useRef<number | null>(null);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    await submitListing();
+  };
+
+  async function submitListing() {
     setStatus('');
     setMessage('');
+    setUploadError('');
 
     if (!title || !location || !size || !price || !description || !sellerName || !sellerPhone) {
       setStatus('error');
@@ -36,25 +48,84 @@ function PostProperty() {
       return;
     }
 
-    const response = await fetch('/api/post-listing', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        title,
-        location,
-        type: propertyType,
-        size,
-        price,
-        description,
-        seller_name: sellerName,
-        seller_phone: sellerPhone,
-        coords: parseCoords(coordsInput),
-      }),
-    });
+    const csrfHeader = typeof window !== 'undefined' && (window as any).CSRF_TOKEN ? (window as any).CSRF_TOKEN : '';
+    let response: Response | null = null;
+    let result: any = null;
+    const coords = parseCoords(coordsInput);
 
-    const result = await response.json();
+    if (selectedFiles.length > 0) {
+      const formData = new FormData();
+      formData.append('title', title);
+      formData.append('location', location);
+      formData.append('type', propertyType);
+      formData.append('size', size);
+      formData.append('price', price);
+      formData.append('description', description);
+      formData.append('seller_name', sellerName);
+      formData.append('seller_phone', sellerPhone);
+      formData.append('coords_lat', String(coords.lat));
+      formData.append('coords_lng', String(coords.lng));
+      selectedFiles.forEach((file) => formData.append('photos', file));
+
+      setUploading(true);
+      setUploadProgress(0);
+      try {
+        result = await new Promise<any>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', '/api/post-listing');
+          if (csrfHeader) {
+            xhr.setRequestHeader('X-CSRF-Token', csrfHeader);
+          }
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              setUploadProgress(Math.round((event.loaded / event.total) * 100));
+            }
+          };
+          xhr.onload = () => {
+            let parsed: any;
+            try {
+              parsed = JSON.parse(xhr.responseText);
+            } catch {
+              parsed = { message: xhr.responseText };
+            }
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve(parsed);
+            } else {
+              reject(parsed);
+            }
+          };
+          xhr.onerror = () => reject({ message: 'Upload failed due to network error.' });
+          xhr.send(formData);
+        });
+        response = { ok: true } as Response;
+      } catch (error) {
+        response = { ok: false } as Response;
+        result = error;
+      } finally {
+        setUploading(false);
+      }
+    } else {
+      response = await fetch('/api/post-listing', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrfHeader ? { 'X-CSRF-Token': csrfHeader } : {}),
+        },
+        body: JSON.stringify({
+          title,
+          location,
+          type: propertyType,
+          size,
+          price,
+          description,
+          seller_name: sellerName,
+          seller_phone: sellerPhone,
+          coords,
+        }),
+      });
+      result = await response.json();
+    }
+
     if (response.ok) {
       setStatus('success');
       setMessage(result.message || 'Property submission sent successfully.');
@@ -67,11 +138,73 @@ function PostProperty() {
       setSellerName('');
       setSellerPhone('');
       setCoordsInput('');
+      setSelectedFiles([]);
+      setUploadProgress(0);
+      setUploadError('');
+      localStorage.removeItem('postPropertyDraft');
     } else {
       setStatus('error');
-      setMessage(result.message || 'Unable to submit the property.');
+      const messageText = result?.message || 'Unable to submit the property.';
+      setMessage(messageText);
+      setUploadError(messageText);
     }
-  };
+  }
+
+  useEffect(() => {
+    setDraftStatus('saving');
+    if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(() => {
+      const draft = {
+        title,
+        location,
+        propertyType,
+        size,
+        price,
+        description,
+        sellerName,
+        sellerPhone,
+        coordsInput,
+        savedAt: Date.now(),
+      };
+      try {
+        localStorage.setItem('postPropertyDraft', JSON.stringify(draft));
+        setDraftStatus('saved');
+        setTimeout(() => setDraftStatus(''), 1500);
+      } catch {
+        setDraftStatus('');
+      }
+    }, 900);
+
+    return () => {
+      if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    };
+  }, [title, location, propertyType, size, price, description, sellerName, sellerPhone, coordsInput]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('postPropertyDraft');
+      if (raw) {
+        const draft = JSON.parse(raw);
+        if (draft) {
+          setTitle(draft.title || '');
+          setLocation(draft.location || '');
+          setPropertyType(draft.propertyType || 'Residential');
+          setSize(draft.size || '');
+          setPrice(draft.price || '');
+          setDescription(draft.description || '');
+          setSellerName(draft.sellerName || '');
+          setSellerPhone(draft.sellerPhone || '');
+          setCoordsInput(draft.coordsInput || '');
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  function removeFile(index: number) {
+    setSelectedFiles((files) => files.filter((_, idx) => idx !== index));
+  }
 
   return (
     <section className="space-y-8">
@@ -186,14 +319,17 @@ function PostProperty() {
                 className="mt-2 w-full rounded-3xl bg-slate-950 px-4 py-3 text-slate-100 outline-none ring-1 ring-slate-800 focus:ring-sky-500"
               />
             </label>
-            <label className="block text-sm font-semibold text-slate-200">
-              Property images
-              <input
-                type="file"
-                multiple
-                className="mt-2 w-full rounded-3xl bg-slate-950 px-4 py-3 text-slate-100 outline-none ring-1 ring-slate-800 focus:ring-sky-500"
-              />
-            </label>
+            <FileUploader
+              multiple
+              accept="image/*"
+              files={selectedFiles}
+              onChange={setSelectedFiles}
+              uploading={uploading}
+              progress={uploadProgress}
+              error={uploadError}
+              onRemove={removeFile}
+              onRetry={submitListing}
+            />
           </div>
           {message ? (
             <p className={`mt-4 rounded-3xl px-4 py-3 text-sm ${status === 'success' ? 'bg-emerald-500/10 text-emerald-300' : 'bg-rose-500/10 text-rose-300'}`}>
@@ -203,11 +339,16 @@ function PostProperty() {
           <div className="mt-8 flex flex-wrap gap-4">
             <button
               type="submit"
-              className="rounded-full bg-sky-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-400"
+              disabled={uploading}
+              className="rounded-full bg-sky-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Submit for approval
             </button>
-            <p className="text-sm text-slate-400">Our admin and survey team will review your submission within 24–48 hours.</p>
+            <div className="flex items-center gap-3">
+              <p className="text-sm text-slate-400">Our admin and survey team will review your submission within 24–48 hours.</p>
+              {draftStatus === 'saving' && <div className="text-sm text-slate-400">Saving draft…</div>}
+              {draftStatus === 'saved' && <div className="text-sm text-emerald-300">Draft saved</div>}
+            </div>
           </div>
         </div>
       </form>

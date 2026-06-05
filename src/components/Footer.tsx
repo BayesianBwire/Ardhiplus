@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom';
 
 const quickLinks = [
-  { label: 'Home', path: '/' },
-  { label: 'Listings', path: '/listings' },
-  { label: 'Services', path: '/services' },
-  { label: 'About', path: '/about' },
-  { label: 'Contact', path: '/contact' },
+  { label: 'Privacy Policy', path: '/privacy' },
+  { label: 'Terms of Service', path: '/terms' },
+  { label: 'FAQ', path: '/faq' },
+  { label: 'Help Center', path: '/help-center' },
+  { label: 'Report Fraud', path: '/report-fraud' },
 ];
 
 function Footer() {

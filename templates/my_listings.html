@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="panel">
+  <h1>My Listings</h1>
+  {% if listings and listings|length > 0 %}
+    <ul>
+      {% for l in listings %}
+        <li><a href="/listings">{{ l.title }}</a> — {{ l.location }} — {{ l.badge }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>You have no active listings.</p>
+  {% endif %}
+  <p>
+    <a href="/api/export/listings.csv" class="button">Download listings CSV</a>
+    <a href="/documents" class="button" style="margin-left:8px;">Open documents</a>
+    <a href="/dashboard" class="button" style="margin-left:8px;">Back to dashboard</a>
+  </p>
+</div>
+{% endblock %}

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useFavorites } from '../hooks/useFavorites';
 import { mockListings } from '../data/mockListings';
@@ -6,11 +6,50 @@ import PropertyCard from '../components/PropertyCard';
 
 function Favorites() {
   const { favorites } = useFavorites();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    setIsLoggedIn(Boolean(localStorage.getItem('token')));
+  }, []);
 
   // Get favorite listings
   const favoriteListings = useMemo(() => {
     return mockListings.filter((listing) => favorites.includes(listing.id));
   }, [favorites]);
+
+  if (!isLoggedIn) {
+    return (
+      <section className="space-y-8">
+        <div className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-10 shadow-soft text-center">
+          <h1 className="text-4xl font-semibold text-white">Login to view saved properties</h1>
+          <p className="mt-4 max-w-2xl mx-auto text-slate-400">
+            Favorites are available once you're signed in. Browse the marketplace, save the listings you like, and
+            request a survey or seller contact when you're ready.
+          </p>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Link
+              to="/login"
+              className="rounded-full bg-sky-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-400"
+            >
+              Login
+            </Link>
+            <Link
+              to="/register"
+              className="rounded-full border border-slate-700 px-6 py-3 text-sm text-slate-200 transition hover:border-sky-400 hover:text-white"
+            >
+              Create account
+            </Link>
+            <Link
+              to="/listings"
+              className="rounded-full border border-slate-700 px-6 py-3 text-sm text-slate-200 transition hover:border-slate-500 hover:text-white"
+            >
+              Browse marketplace
+            </Link>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="space-y-8">
