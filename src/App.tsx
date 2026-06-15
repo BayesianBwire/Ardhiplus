@@ -36,7 +36,7 @@ import VerifyEmail from './pages/VerifyEmail';
 
 function App() {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="min-h-screen bg-slate-950 text-slate-100 pt-28 pb-56">
       <Navbar />
       <main className="mx-auto max-w-7xl px-6 py-8 sm:px-8">
         <Routes>

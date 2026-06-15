@@ -1,4 +1,4 @@
-﻿import { Link, useLocation } from 'react-router-dom';
+﻿import { Link } from 'react-router-dom';
 import LeadInbox from '../components/LeadInbox';
 import PropertyTable from '../components/PropertyTable';
 import MessagesCenter from '../components/MessagesCenter';
@@ -7,22 +7,8 @@ import VerificationCenter from '../components/VerificationCenter';
 import DocumentsManager from '../components/DocumentsManager';
 import { mockListings, type Listing } from '../data/mockListings';
 
-type Role = 'agent' | 'broker' | 'owner';
-
 function Dashboard() {
-  const location = useLocation();
-  const params = new URLSearchParams(location.search);
-  const role = (params.get('role') as Role) || 'agent';
-  const isOwner = role === 'owner';
-  const isBroker = role === 'broker';
-  const userName = role === 'owner' ? 'Property Owner' : role === 'broker' ? 'Broker' : 'Bilford';
-  const dashboardLabel = role === 'owner' ? 'Owner dashboard' : role === 'broker' ? 'Broker dashboard' : 'Agent dashboard';
-  const roleDescription = isOwner
-    ? 'Control your land assets, upload titles, and match verified buyers with confidence.'
-    : isBroker
-    ? 'Manage broker listings, buyer relationships, and commission performance in one place.'
-    : 'Your mission control for verified listings, buyer leads, visits, commissions, and fraud prevention.';
-
+  const agentName = 'Bilford';
   const totalListings = 24;
   const activeListings = 18;
   const soldProperties = 6;
@@ -79,6 +65,14 @@ function Dashboard() {
     'Expired documents',
   ];
 
+  const verificationProfile = {
+    status: 'Approved',
+    license: 'AP-2026-9812',
+    experience: '8 years',
+    sold: 47,
+    rating: '4.9/5',
+  };
+
   const communicationActions = [
     { label: 'WhatsApp buyer', action: '/contact' },
     { label: 'Call buyer', action: '/contact' },
@@ -91,9 +85,11 @@ function Dashboard() {
       <div className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-8 shadow-soft">
         <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.35em] text-sky-300">{dashboardLabel}</p>
-            <h1 className="mt-4 text-5xl font-semibold text-white">Welcome back, {userName}</h1>
-            <p className="mt-4 max-w-3xl text-lg text-slate-400">{roleDescription}</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.35em] text-sky-300">Agent dashboard</p>
+            <h1 className="mt-4 text-5xl font-semibold text-white">Welcome back, {agentName}</h1>
+            <p className="mt-4 max-w-3xl text-lg text-slate-400">
+              Your mission control for verified listings, buyer leads, visits, commissions, and fraud prevention.
+            </p>
           </div>
           <div className="flex flex-wrap gap-3">
             <Link
@@ -108,52 +104,33 @@ function Dashboard() {
             >
               Post property
             </Link>
-            <a
-              href="/api/export/listings.csv"
-              className="inline-flex items-center justify-center rounded-full border border-slate-700 bg-white/5 px-4 py-2 text-sm text-slate-200 transition hover:border-sky-500 hover:text-white"
-            >
-              Export listings CSV
-            </a>
-            <a
-              href="/api/export/leads.csv"
-              className="inline-flex items-center justify-center rounded-full border border-slate-700 bg-white/5 px-4 py-2 text-sm text-slate-200 transition hover:border-sky-500 hover:text-white"
-            >
-              Export leads CSV
-            </a>
           </div>
         </div>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {performanceMetrics.map((metric) => {
-            const to = metric.label === 'Total Leads' ? '/leads' : metric.label === 'Monthly Commission' ? '/commission' : '/my-listings';
-            return (
-              <Link
-                key={metric.label}
-                to={to}
-                className="block rounded-xl border border-slate-800 bg-slate-950/70 p-4 shadow-sm hover:shadow-md"
-              >
-                <p className="text-xs uppercase tracking-[0.25em] text-slate-400">{metric.label}</p>
-                <p className="mt-2 text-2xl font-semibold text-white">{metric.value}</p>
-              </Link>
-            );
-          })}
-          <Link to="/settings" className="block rounded-xl border border-slate-800 bg-slate-950/70 p-4 shadow-sm hover:shadow-md">
-            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Profile completion</p>
-            <div className="mt-2 flex items-center justify-between gap-3">
-              <p className="text-2xl font-semibold text-white">{profileCompletion}%</p>
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {performanceMetrics.map((metric) => (
+            <div key={metric.label} className="rounded-[1.75rem] border border-slate-800 bg-slate-950/70 p-6 shadow-sm shadow-slate-950/20">
+              <p className="text-sm uppercase tracking-[0.25em] text-slate-400">{metric.label}</p>
+              <p className="mt-4 text-3xl font-semibold text-white">{metric.value}</p>
+            </div>
+          ))}
+          <div className="rounded-[1.75rem] border border-slate-800 bg-slate-950/70 p-6 shadow-sm shadow-slate-950/20">
+            <p className="text-sm uppercase tracking-[0.25em] text-slate-400">Profile completion</p>
+            <div className="mt-4 flex items-center justify-between gap-4">
+              <p className="text-3xl font-semibold text-white">{profileCompletion}%</p>
               <div className="flex-1">
                 <div className="h-2 overflow-hidden rounded-full bg-slate-800">
                   <div className="h-full rounded-full bg-emerald-400" style={{ width: `${profileCompletion}%` }} />
                 </div>
               </div>
             </div>
-          </Link>
+          </div>
         </div>
       </div>
 
       <div className="grid gap-8 xl:grid-cols-[1.8fr_1.05fr]">
         <div className="space-y-8">
-          <div className="rounded-lg border border-slate-800 bg-slate-900/90 p-4 shadow-soft">
+          <div className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-8 shadow-soft">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-2xl font-semibold text-white">Lead management</h2>
@@ -169,22 +146,27 @@ function Dashboard() {
               </div>
             </div>
 
-            <div className="mt-4 grid gap-3 lg:grid-cols-3">
+            <div className="mt-6 grid gap-4 lg:grid-cols-3">
               {leadManagement.map((lead) => (
-                <Link key={lead.id} to={`/leads`} className="block rounded-xl border border-slate-800 bg-slate-950/80 p-4 shadow-sm hover:shadow-md">
+                <div key={lead.id} className="rounded-3xl border border-slate-800 bg-slate-950/80 p-6 shadow-sm">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-sm text-slate-400">{lead.name}</p>
-                      <h3 className="mt-1 text-lg font-semibold text-white">{lead.note}</h3>
+                      <h3 className="mt-2 text-xl font-semibold text-white">{lead.note}</h3>
                     </div>
-                    <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-300">{lead.status}</span>
+                    <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300">{lead.status}</span>
                   </div>
-                </Link>
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    <button type="button" className="rounded-full bg-sky-500 px-4 py-2 text-xs font-semibold text-slate-950 transition hover:bg-sky-400">Contact</button>
+                    <button type="button" className="rounded-full border border-slate-700 px-4 py-2 text-xs text-slate-200 transition hover:border-rose-400 hover:text-white">Mark closed</button>
+                    <button type="button" className="rounded-full border border-slate-700 px-4 py-2 text-xs text-slate-200 transition hover:border-sky-400 hover:text-white">Schedule visit</button>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
 
-          <div className="rounded-lg border border-slate-800 bg-slate-900/90 p-4 shadow-soft">
+          <div className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-8 shadow-soft">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-2xl font-semibold text-white">Property status tracker</h2>
@@ -195,7 +177,7 @@ function Dashboard() {
               </Link>
             </div>
 
-            <div className="mt-4 overflow-x-auto">
+            <div className="mt-6 overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-800 text-left text-sm text-slate-300">
                 <thead className="border-b border-slate-800 text-slate-400">
                   <tr>
@@ -219,7 +201,7 @@ function Dashboard() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-slate-800 bg-slate-900/90 p-4 shadow-soft">
+          <div className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-8 shadow-soft">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-2xl font-semibold text-white">Upcoming site visits</h2>
@@ -230,17 +212,17 @@ function Dashboard() {
                 <button type="button" className="rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-200 transition hover:border-sky-400 hover:text-white">Reschedule</button>
               </div>
             </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="mt-6 grid gap-4 sm:grid-cols-3">
               {upcomingVisits.map((visit) => (
-                <Link key={visit.date} to="/viewings" className="block rounded-xl border border-slate-800 bg-slate-950/70 p-3 shadow-sm hover:shadow-md">
+                <div key={visit.date} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 shadow-sm">
                   <p className="text-sm text-slate-400">{visit.date}</p>
-                  <h3 className="mt-1 text-md font-semibold text-white">{visit.title}</h3>
-                </Link>
+                  <h3 className="mt-3 text-lg font-semibold text-white">{visit.title}</h3>
+                </div>
               ))}
             </div>
           </div>
 
-          <div className="rounded-lg border border-slate-800 bg-slate-900/90 p-4 shadow-soft">
+          <div className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-8 shadow-soft">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-2xl font-semibold text-white">Communication center</h2>
@@ -250,12 +232,12 @@ function Dashboard() {
                 Open messages
               </Link>
             </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
               {communicationActions.map((item) => (
-                <Link key={item.label} to={item.action} className="block rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-3 text-left text-sm text-slate-200 transition hover:border-sky-500 hover:bg-slate-950">
+                <button key={item.label} type="button" className="rounded-3xl border border-slate-800 bg-slate-950/80 px-4 py-4 text-left text-sm text-slate-200 transition hover:border-sky-500 hover:bg-slate-950">
                   <div className="font-semibold text-white">{item.label}</div>
                   <div className="mt-1 text-xs text-slate-400">Quick action</div>
-                </Link>
+                </button>
               ))}
             </div>
           </div>
@@ -263,18 +245,27 @@ function Dashboard() {
 
         <aside className="space-y-6">
           <div className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6 shadow-soft">
-            <h2 className="text-2xl font-semibold text-white">Verification center</h2>
-            <p className="mt-3 text-slate-400 text-sm">Open the verification workflow to see real title, survey, and county review status.</p>
-            <div className="mt-6 rounded-3xl border border-slate-800 bg-slate-950/90 p-5 text-sm text-slate-300">
-              <p className="font-semibold text-white">No dummy verification badges displayed here.</p>
-              <p className="mt-3">Use the Verification section to manage actual property approvals, document uploads, and audit milestones.</p>
+            <h2 className="text-2xl font-semibold text-white">Agent verification badge</h2>
+            <p className="mt-3 text-slate-400 text-sm">Trusted agent status, license, and performance metrics.</p>
+            <div className="mt-6 space-y-4">
+              <div className="rounded-3xl border border-slate-800 bg-slate-950/90 p-5">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm uppercase tracking-[0.2em] text-slate-400">Verified Agent Status</p>
+                    <p className="mt-2 text-2xl font-semibold text-emerald-300">{verificationProfile.status} ✓</p>
+                  </div>
+                  <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300">Trusted</span>
+                </div>
+              </div>
+              <div className="rounded-3xl border border-slate-800 bg-slate-950/90 p-5">
+                <div className="space-y-3 text-sm text-slate-300">
+                  <div className="flex items-center justify-between"><span>License number</span><span className="font-semibold text-white">{verificationProfile.license}</span></div>
+                  <div className="flex items-center justify-between"><span>Years experience</span><span className="font-semibold text-white">{verificationProfile.experience}</span></div>
+                  <div className="flex items-center justify-between"><span>Properties sold</span><span className="font-semibold text-white">{verificationProfile.sold}</span></div>
+                  <div className="flex items-center justify-between"><span>Rating</span><span className="font-semibold text-white">{verificationProfile.rating}</span></div>
+                </div>
+              </div>
             </div>
-            <Link
-              to="/verification"
-              className="mt-5 inline-flex w-full items-center justify-center rounded-full bg-sky-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-400"
-            >
-              Open verification center
-            </Link>
           </div>
 
           <div className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6 shadow-soft">

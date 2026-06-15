@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import DataExportActions from '../components/DataExportActions';
 
 export default function Settings() {
   return (
@@ -8,7 +7,6 @@ export default function Settings() {
         <h1 className="text-3xl font-semibold text-white">Settings</h1>
         <p className="mt-3 text-slate-400">Update your account preferences, notifications, and security settings.</p>
       </div>
-      <DataExportActions />
       <div className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6 shadow-soft space-y-4">
         <div className="rounded-3xl border border-slate-800 bg-slate-950/90 p-5">
           <h2 className="text-lg font-semibold text-white">Account settings</h2>

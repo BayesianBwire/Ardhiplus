@@ -21,6 +21,8 @@ export interface Listing {
   sellerPhone?: string;
   sellerEmail?: string;
   sellerNotes?: string;
+  postedDate?: string;
+  views?: number;
 }
 
 export const mockListings: Listing[] = [
@@ -47,6 +49,8 @@ export const mockListings: Listing[] = [
     sellerPhone: '+254712345678',
     sellerEmail: 'seller1@ardhiplus.co.ke',
     sellerNotes: 'Seller is an accredited land broker with verified title documents.',
+    postedDate: '2 days ago',
+    views: 321,
   },
   {
     id: 2,
@@ -69,6 +73,8 @@ export const mockListings: Listing[] = [
     sellerPhone: '+254723456789',
     sellerEmail: 'seller2@ardhiplus.co.ke',
     sellerNotes: 'Seller has completed the initial survey and boundary review.',
+    postedDate: '3 days ago',
+    views: 198,
   },
   {
     id: 3,
@@ -91,6 +97,8 @@ export const mockListings: Listing[] = [
     sellerPhone: '+254734567890',
     sellerEmail: 'seller3@ardhiplus.co.ke',
     sellerNotes: 'Pending survey verification and title clearance.',
+    postedDate: '1 day ago',
+    views: 88,
   },
   {
     id: 4,
@@ -114,6 +122,8 @@ export const mockListings: Listing[] = [
     sellerPhone: '+254745678901',
     sellerEmail: 'seller4@ardhiplus.co.ke',
     sellerNotes: 'Prime beachfront location with pristine title.',
+    postedDate: '5 days ago',
+    views: 440,
   },
   {
     id: 5,
@@ -137,6 +147,8 @@ export const mockListings: Listing[] = [
     sellerPhone: '+254756789012',
     sellerEmail: 'seller5@ardhiplus.co.ke',
     sellerNotes: 'Excellent family home with all amenities.',
+    postedDate: '6 days ago',
+    views: 520,
   },
   {
     id: 6,
@@ -158,6 +170,8 @@ export const mockListings: Listing[] = [
     sellerPhone: '+254767890123',
     sellerEmail: 'seller6@ardhiplus.co.ke',
     sellerNotes: 'Good value for money investment.',
+    postedDate: '2 days ago',
+    views: 134,
   },
   {
     id: 7,
@@ -179,6 +193,8 @@ export const mockListings: Listing[] = [
     sellerPhone: '+254778901234',
     sellerEmail: 'seller7@ardhiplus.co.ke',
     sellerNotes: 'High foot traffic location, perfect for retail.',
+    postedDate: '4 days ago',
+    views: 289,
   },
   {
     id: 8,
@@ -200,5 +216,7 @@ export const mockListings: Listing[] = [
     sellerPhone: '+254789012345',
     sellerEmail: 'seller8@ardhiplus.co.ke',
     sellerNotes: 'Excellent agricultural land.',
+    postedDate: '1 week ago',
+    views: 98,
   },
 ];

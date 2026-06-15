@@ -1,18 +1,18 @@
 import { Link } from 'react-router-dom';
 
 const quickLinks = [
-  { label: 'Privacy Policy', path: '/privacy' },
-  { label: 'Terms of Service', path: '/terms' },
-  { label: 'FAQ', path: '/faq' },
-  { label: 'Help Center', path: '/help-center' },
-  { label: 'Report Fraud', path: '/report-fraud' },
+  { label: 'Home', path: '/' },
+  { label: 'Listings', path: '/listings' },
+  { label: 'Services', path: '/services' },
+  { label: 'About', path: '/about' },
+  { label: 'Contact', path: '/contact' },
 ];
 
 function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-slate-800 bg-slate-950 pt-6 pb-2 text-slate-400">
+    <footer className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-slate-950/95 pt-6 pb-2 text-slate-400">
       <div className="mx-auto max-w-7xl px-6 sm:px-8">
         {/* Main footer content: 3 columns on desktop, stacked on mobile */}
         <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-6 md:gap-0 pb-4 border-b border-slate-800">

@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import DataExportActions from '../components/DataExportActions';
 
 export default function Commission() {
   return (
@@ -8,12 +7,7 @@ export default function Commission() {
         <h1 className="text-3xl font-semibold text-white">Commission Tracker</h1>
         <p className="mt-3 text-slate-400">Review your earned and pending commission details.</p>
       </div>
-      <DataExportActions />
       <div className="space-y-4 rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6 shadow-soft">
-        <div className="flex items-center justify-end gap-3 mb-2">
-          <a href="/api/export/listings.csv" className="rounded-full border border-slate-700 px-3 py-1 text-sm text-slate-200">Export listings CSV</a>
-          <a href="/api/export/leads.csv" className="rounded-full bg-sky-500 px-3 py-1 text-sm font-semibold text-slate-950">Export leads CSV</a>
-        </div>
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="rounded-3xl border border-slate-800 bg-slate-950/90 p-5">
             <p className="text-sm text-slate-400">Total revenue generated</p>

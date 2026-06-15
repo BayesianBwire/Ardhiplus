@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import type { ChangeEvent } from 'react';
 
 type DocumentType = 'Title Deed' | 'Survey Maps' | 'Ownership Documents' | 'County Approvals' | 'Sale Agreements';
@@ -8,7 +8,6 @@ type UploadedDocument = {
   name: string;
   type: DocumentType;
   uploadedAt: string;
-  downloadUrl: string;
 };
 
 const documentTypes: DocumentType[] = [
@@ -23,28 +22,15 @@ export default function DocumentsManager() {
   const [selectedType, setSelectedType] = useState<DocumentType>('Title Deed');
   const [files, setFiles] = useState<UploadedDocument[]>([]);
   const [uploading, setUploading] = useState(false);
-  const fileUrlSet = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    return () => {
-      fileUrlSet.current.forEach((url) => URL.revokeObjectURL(url));
-      fileUrlSet.current.clear();
-    };
-  }, []);
 
   function handleUpload(event: ChangeEvent<HTMLInputElement>) {
     if (!event.target.files) return;
-    const uploadFiles = Array.from(event.target.files).map((file) => {
-      const downloadUrl = URL.createObjectURL(file);
-      fileUrlSet.current.add(downloadUrl);
-      return {
-        id: `${Date.now()}-${file.name}`,
-        name: file.name,
-        type: selectedType,
-        uploadedAt: new Date().toISOString(),
-        downloadUrl,
-      };
-    });
+    const uploadFiles = Array.from(event.target.files).map((file) => ({
+      id: `${Date.now()}-${file.name}`,
+      name: file.name,
+      type: selectedType,
+      uploadedAt: new Date().toISOString(),
+    }));
     setUploading(true);
     window.setTimeout(() => {
       setFiles((prev) => [...uploadFiles, ...prev]);
@@ -54,14 +40,7 @@ export default function DocumentsManager() {
   }
 
   function removeFile(id: string) {
-    setFiles((prev) => {
-      const removed = prev.find((file) => file.id === id);
-      if (removed) {
-        URL.revokeObjectURL(removed.downloadUrl);
-        fileUrlSet.current.delete(removed.downloadUrl);
-      }
-      return prev.filter((file) => file.id !== id);
-    });
+    setFiles((prev) => prev.filter((file) => file.id !== id));
   }
 
   const groupedFiles = documentTypes.map((type) => ({
@@ -125,16 +104,7 @@ export default function DocumentsManager() {
                       <div className="font-medium text-white">{file.name}</div>
                       <div className="text-xs text-slate-500">Uploaded {new Date(file.uploadedAt).toLocaleDateString()}</div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <a
-                        href={file.downloadUrl}
-                        download={file.name}
-                        className="rounded-full border border-slate-700 px-3 py-1 text-xs text-sky-300"
-                      >
-                        Download
-                      </a>
-                      <button type="button" onClick={() => removeFile(file.id)} className="text-xs text-rose-300">Remove</button>
-                    </div>
+                    <button type="button" onClick={() => removeFile(file.id)} className="text-xs text-rose-300">Remove</button>
                   </li>
                 ))}
               </ul>

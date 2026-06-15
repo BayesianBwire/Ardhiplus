@@ -1,16 +1,19 @@
 import { Link, NavLink } from 'react-router-dom';
 
 const navItems = [
-  { label: 'Marketplace', path: '/listings' },
+  { label: 'Home', path: '/' },
+  { label: 'Listings', path: '/listings' },
   { label: 'Agents', path: '/agents' },
-  { label: 'Services', path: '/services' },
-  { label: 'Help Center', path: '/help-center' },
   { label: 'Dashboard', path: '/dashboard' },
+  { label: 'Services', path: '/services' },
+  { label: 'About', path: '/about' },
+  { label: 'Contact', path: '/contact' },
+  { label: 'FAQ', path: '/faq' },
 ];
 
 function Navbar() {
   return (
-    <header className="border-b border-slate-800 bg-slate-950/95 backdrop-blur-md">
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-slate-800 bg-slate-950/95 backdrop-blur-md">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 sm:px-8">
         <Link to="/" className="flex items-center gap-3 text-base font-semibold text-sky-300">
           <img src="/logo.svg" alt="Ardhi Plus logo" className="h-8 w-8" />

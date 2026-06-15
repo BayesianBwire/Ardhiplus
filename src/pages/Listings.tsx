@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import PropertyCard from '../components/PropertyCard';
-import type { Listing } from '../data/mockListings';
+import { mockListings, type Listing } from '../data/mockListings';
 
 function Listings() {
   const [listings, setListings] = useState<Listing[]>([]);
@@ -16,6 +17,7 @@ function Listings() {
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [sortBy, setSortBy] = useState<string>('newest');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const location = useLocation();
 
   // Fetch listings
   useEffect(() => {
@@ -30,12 +32,30 @@ function Listings() {
         setListings(data);
       })
       .catch(() => {
-        setError('Failed to load listings. Please try again later.');
+        setError('Failed to load listings. Please try again later. Showing sample listings.');
+        setListings(mockListings);
       })
       .finally(() => {
         setLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const query = params.get('location') || '';
+    const type = params.get('type') || 'All';
+    const countyParam = params.get('county') || 'All';
+    const minPrice = params.get('minPrice');
+    const maxPrice = params.get('maxPrice');
+
+    setSearchQuery(query);
+    setPropertyType(type);
+    setCounty(countyParam);
+
+    const lowValue = minPrice ? parseInt(minPrice, 10) : 0;
+    const highValue = maxPrice ? parseInt(maxPrice, 10) : 100000000;
+    setPriceRange([Number.isNaN(lowValue) ? 0 : lowValue, Number.isNaN(highValue) ? 100000000 : highValue]);
+  }, [location.search]);
 
   // Apply filters
   useEffect(() => {
@@ -56,7 +76,7 @@ function Listings() {
 
     // Bedrooms filter
     if (bedrooms !== 'All') {
-      const bedroomNum = parseInt(bedrooms);
+      const bedroomNum = parseInt(bedrooms, 10);
       filtered = filtered.filter((l) => l.bedrooms === bedroomNum);
     }
 
@@ -87,12 +107,21 @@ function Listings() {
     }
 
     setFilteredListings(filtered);
-  }, [listings, priceRange, propertyType, county, bedrooms, verifiedOnly, sortBy]);
+  }, [listings, priceRange, propertyType, county, bedrooms, verifiedOnly, sortBy, searchQuery]);
 
   // Get unique values for filters
   const counties = ['All', ...new Set(listings.map((l) => l.county))];
   const types = ['All', ...new Set(listings.map((l) => l.type))];
-  const bedroomOptions = ['All', ...new Set(listings.filter((l) => l.bedrooms).map((l) => l.bedrooms?.toString() || ''))];
+  const bedroomOptions = [
+    'All',
+    ...Array.from(
+      new Set(
+        listings
+          .filter((l): l is Listing => typeof l.bedrooms === 'number')
+          .map((l) => l.bedrooms.toString())
+      )
+    ).sort((a, b) => Number(a) - Number(b)),
+  ];
 
   return (
     <section className="space-y-8">

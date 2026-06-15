@@ -13,6 +13,26 @@ function parseCoords(value: string) {
   return { lat: 0.0, lng: 0.0 };
 }
 
+function getCookieValue(name: string) {
+  if (typeof document === 'undefined') return '';
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : '';
+}
+
+function getCsrfToken() {
+  if (typeof window !== 'undefined' && (window as any).CSRF_TOKEN) {
+    return (window as any).CSRF_TOKEN as string;
+  }
+  if (typeof document !== 'undefined') {
+    const meta = document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null;
+    if (meta?.content) {
+      return meta.content;
+    }
+    return getCookieValue('csrf_token');
+  }
+  return '';
+}
+
 function PostProperty() {
   const [title, setTitle] = useState('');
   const [location, setLocation] = useState('');
@@ -48,7 +68,7 @@ function PostProperty() {
       return;
     }
 
-    const csrfHeader = typeof window !== 'undefined' && (window as any).CSRF_TOKEN ? (window as any).CSRF_TOKEN : '';
+    const csrfHeader = getCsrfToken();
     let response: Response | null = null;
     let result: any = null;
     const coords = parseCoords(coordsInput);
@@ -107,6 +127,7 @@ function PostProperty() {
     } else {
       response = await fetch('/api/post-listing', {
         method: 'POST',
+        credentials: 'same-origin',
         headers: {
           'Content-Type': 'application/json',
           ...(csrfHeader ? { 'X-CSRF-Token': csrfHeader } : {}),

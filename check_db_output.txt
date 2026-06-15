@@ -1,0 +1,11 @@
+Total listings: 5
+Verified: 4
+Unverified: 1
+Sample-like entries in recent 20: 3
+
+Sample rows:
+{'id': 5, 'title': '2 acre farm land', 'seller_email': 'bob@broker.test', 'verified': False, 'badge': 'Survey Pending'}
+{'id': 4, 'title': 'My home', 'seller_email': None, 'verified': True, 'badge': 'Verified Survey'}
+{'id': 3, 'title': 'Greenfield Acreage', 'seller_email': 'seller3@ardhiplus.co.ke', 'verified': True, 'badge': 'Verified Survey'}
+{'id': 1, 'title': 'Prime Residential Plot', 'seller_email': 'seller1@ardhiplus.co.ke', 'verified': True, 'badge': 'Verified Survey'}
+{'id': 2, 'title': 'Commercial Land Parcel', 'seller_email': 'seller2@ardhiplus.co.ke', 'verified': True, 'badge': 'Trust Badge'}
