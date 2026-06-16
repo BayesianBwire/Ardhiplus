@@ -7,7 +7,18 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h2 className="text-2xl font-bold text-amber-400 mb-4">{children}</h2>;
 }
 
-const dummyListings = [
+interface Listing {
+  id: number;
+  title: string;
+  county: string;
+  seller: string;
+  price: string;
+  acreage: string;
+  status: 'verified' | 'pending' | 'rejected';
+  docs: number;
+}
+
+const initialListings: Listing[] = [
   { id: 1, title: 'Greenfields Estate', county: 'Kiambu', seller: 'Jane Mwangi', price: 'KSh 2.5M', acreage: '1.2', status: 'verified', docs: 3 },
   { id: 2, title: 'Coastal View Plots', county: 'Mombasa', seller: 'Samuel Otieno', price: 'KSh 1.8M', acreage: '0.8', status: 'pending', docs: 2 },
   { id: 3, title: 'Sunset Gardens', county: 'Nairobi', seller: 'Grace Wambui', price: 'KSh 3.1M', acreage: '2.0', status: 'rejected', docs: 1 },
@@ -21,6 +32,8 @@ const statusColors = {
 
 export default function Admin() {
   const [active, setActive] = useState('dashboard');
+  const [listings, setListings] = useState<Listing[]>(initialListings);
+  const [editingListingId, setEditingListingId] = useState<number | null>(null);
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || 'null');
 
@@ -29,6 +42,25 @@ export default function Admin() {
       navigate('/login');
     }
   }, [user, navigate]);
+
+  const handleApproveListing = (listingId: number) => {
+    setListings(listings.map(listing => 
+      listing.id === listingId ? { ...listing, status: 'verified' as const } : listing
+    ));
+    alert(`Listing "${listings.find(l => l.id === listingId)?.title}" has been approved!`);
+  };
+
+  const handleRejectListing = (listingId: number) => {
+    setListings(listings.map(listing => 
+      listing.id === listingId ? { ...listing, status: 'rejected' as const } : listing
+    ));
+    alert(`Listing "${listings.find(l => l.id === listingId)?.title}" has been rejected!`);
+  };
+
+  const handleEditListing = (listingId: number) => {
+    setEditingListingId(listingId);
+    alert(`Edit mode for listing ID ${listingId} - full editing interface coming soon.`);
+  };
 
   function renderSection() {
     switch (active) {
@@ -96,7 +128,7 @@ export default function Admin() {
                   </tr>
                 </thead>
                 <tbody>
-                  {dummyListings.map((listing) => (
+                  {listings.map((listing) => (
                     <tr key={listing.id} className="border-t border-slate-800 hover:bg-slate-900/60 transition-colors">
                       <td className="px-3 py-3 font-semibold text-white">{listing.title}</td>
                       <td className="px-3 py-3">{listing.county}</td>
@@ -110,9 +142,24 @@ export default function Admin() {
                       </td>
                       <td className="px-3 py-3">{listing.docs}</td>
                       <td className="px-3 py-3 flex flex-wrap gap-2">
-                        <button className="rounded-full bg-emerald-700/20 px-3 py-1 text-emerald-200 text-xs">Approve</button>
-                        <button className="rounded-full bg-rose-700/20 px-3 py-1 text-rose-200 text-xs">Reject</button>
-                        <button className="rounded-full bg-sky-700/20 px-3 py-1 text-sky-200 text-xs">Edit</button>
+                        <button 
+                          onClick={() => handleApproveListing(listing.id)} 
+                          className="rounded-full bg-emerald-700/20 px-3 py-1 text-emerald-200 text-xs hover:bg-emerald-700/40 transition"
+                        >
+                          Approve
+                        </button>
+                        <button 
+                          onClick={() => handleRejectListing(listing.id)} 
+                          className="rounded-full bg-rose-700/20 px-3 py-1 text-rose-200 text-xs hover:bg-rose-700/40 transition"
+                        >
+                          Reject
+                        </button>
+                        <button 
+                          onClick={() => handleEditListing(listing.id)} 
+                          className="rounded-full bg-sky-700/20 px-3 py-1 text-sky-200 text-xs hover:bg-sky-700/40 transition"
+                        >
+                          Edit
+                        </button>
                       </td>
                     </tr>
                   ))}
