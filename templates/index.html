@@ -2,17 +2,25 @@
 {% block content %}
 <section class="hero hero-logo-bg">
   <div class="hero-copy">
-    <span class="eyebrow">Trusted marketplace + survey services</span>
-    <h1>Find verified land and property with professional survey backing.</h1>
-    <p>Ardhi Plus brings buyers, sellers, and surveyors together in one platform for transparent real estate transactions.</p>
+    <span class="eyebrow">Verified property marketplace & survey services</span>
+    <h1>Secure land and property transactions with survey-backed confidence.</h1>
+    <p>Ardhi Plus helps buyers, sellers, and agents discover verified listings, request professional land surveys, and complete transactions with greater transparency.</p>
     <div class="hero-actions">
-      <a class="button button-primary" href="/listings">Explore listings</a>
-      <a class="button button-outline" href="/services">Survey services</a>
+      <a class="button button-primary" href="/listings">Explore verified listings</a>
+      <a class="button button-outline" href="/services">Book a survey consultation</a>
+    </div>
+    <div class="trust-strip" aria-label="Ardhi Plus trust points">
+      <span class="trust-pill">Verified listings</span>
+      <span class="trust-pill">Professional surveys</span>
+      <span class="trust-pill">Admin-reviewed properties</span>
     </div>
   </div>
   <div class="hero-panel">
     <div class="panel-card">
-      <h2>Featured verified listings</h2>
+      <div class="panel-heading">
+        <p class="eyebrow eyebrow-dark">Featured opportunities</p>
+        <h2>Trusted properties ready for review</h2>
+      </div>
       <div class="featured-listings">
         {% for listing in featured %}
         <article class="card small-card">
@@ -23,25 +31,57 @@
         </article>
         {% endfor %}
       </div>
+      <p class="panel-note">Every listing is reviewed for credibility and survey readiness before publication.</p>
     </div>
   </div>
 </section>
 
-<section class="feature-grid">
-  <article class="feature-card">
-    <p class="eyebrow">Property marketplace</p>
-    <h2>Browse verified land and development sites.</h2>
-    <p>Search by location, size, price, and trust badge to find your ideal property with survey protection.</p>
-  </article>
-  <article class="feature-card">
-    <p class="eyebrow">Survey verification</p>
-    <h2>Request professional land survey services.</h2>
-    <p>Obtain boundary plans, title checks, and accurate geo-referenced reports before purchase.</p>
-  </article>
-  <article class="feature-card">
-    <p class="eyebrow">Admin approval</p>
-    <h2>Verified listings only.</h2>
-    <p>Each property passes manual admin review and survey validation before it goes live.</p>
-  </article>
+<section class="section-block">
+  <div class="section-heading">
+    <span class="eyebrow">Why choose Ardhi Plus</span>
+    <h2>Everything you need to buy, sell, or verify property with confidence.</h2>
+    <p>From discovery to survey approval, our platform brings clarity to every step of the transaction.</p>
+  </div>
+  <div class="feature-grid">
+    <article class="feature-card">
+      <p class="eyebrow">Property marketplace</p>
+      <h2>Browse verified land and development sites.</h2>
+      <p>Search by location, size, price, and trust badge to find opportunities with professional survey protection.</p>
+    </article>
+    <article class="feature-card">
+      <p class="eyebrow">Survey verification</p>
+      <h2>Request professional land survey services.</h2>
+      <p>Obtain boundary plans, title checks, and accurate geo-referenced reports before purchase.</p>
+    </article>
+    <article class="feature-card">
+      <p class="eyebrow">Admin approval</p>
+      <h2>Verified listings only.</h2>
+      <p>Each property passes manual admin review and survey validation before it goes live.</p>
+    </article>
+  </div>
+</section>
+
+<section class="section-block section-block-alt">
+  <div class="section-heading">
+    <span class="eyebrow">How it works</span>
+    <h2>A clear path from inquiry to confident ownership.</h2>
+  </div>
+  <div class="steps-grid">
+    <article class="step-card">
+      <div class="step-number">01</div>
+      <h3>Discover</h3>
+      <p>Browse verified homes, land, and development opportunities tailored to your goals.</p>
+    </article>
+    <article class="step-card">
+      <div class="step-number">02</div>
+      <h3>Verify</h3>
+      <p>Review survey readiness, property details, and approval status before you proceed.</p>
+    </article>
+    <article class="step-card">
+      <div class="step-number">03</div>
+      <h3>Confirm</h3>
+      <p>Connect with trusted agents and survey professionals to move forward securely.</p>
+    </article>
+  </div>
 </section>
 {% endblock %}
