@@ -357,16 +357,54 @@ async function attachAdminActions() {
   buttons.forEach((button) => {
     button.addEventListener("click", async () => {
       const listingId = Number(button.dataset.id);
-      const response = await fetch("/api/verify-listing", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ listing_id: listingId }),
-      });
+      const originalText = button.textContent;
+      button.disabled = true;
+      button.textContent = "Verifying...";
 
-      const result = await response.json();
-      showMessage(message, result.message, response.ok ? "success" : "error");
-      if (response.ok) {
-        setTimeout(() => location.reload(), 800);
+      try {
+        const response = await fetch("/api/verify-listing", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ listing_id: listingId }),
+        });
+
+        const result = await response.json();
+        showMessage(message, result.message, response.ok ? "success" : "error");
+
+        if (response.ok) {
+          const card = button.closest(".admin-card");
+          if (card) {
+            const badge = card.querySelector(".badge");
+            const status = card.querySelector(".verified-status");
+            if (badge) {
+              badge.textContent = "Verified Survey";
+              badge.classList.add("badge-verified");
+            }
+            if (status) {
+              status.textContent = "✓ Approved and verified";
+            }
+            const details = card.querySelector(".admin-details");
+            if (details) {
+              details.insertAdjacentHTML("beforeend", "<p><strong>Status:</strong> Approved</p>");
+            }
+            button.remove();
+            const verifiedSection = document.querySelector("#verified-listings");
+            if (verifiedSection) {
+              const container = verifiedSection.closest(".admin-section").querySelector(".pending-listings");
+              if (container) {
+                container.appendChild(card);
+              }
+            }
+          }
+          setTimeout(() => location.reload(), 1200);
+        } else {
+          button.disabled = false;
+          button.textContent = originalText;
+        }
+      } catch (error) {
+        showMessage(message, "Verification failed. Please try again.", "error");
+        button.disabled = false;
+        button.textContent = originalText;
       }
     });
   });

@@ -423,6 +423,19 @@ class PasswordResetToken(db.Model):
         }
 
 
+class EmailVerificationToken(db.Model):
+    token = db.Column(db.String(255), primary_key=True)
+    email = db.Column(db.String(255), nullable=False)
+    code = db.Column(db.String(50), nullable=True)
+    expires = db.Column(db.Float, nullable=False)
+
+    def to_dict(self):
+        return {
+            "token": self.token,
+            "email": self.email,
+            "code": self.code,
+            "expires": self.expires,
+        }
 
 
 class LoginThrottle(db.Model):
@@ -1924,9 +1937,13 @@ def api_survey_request():
 
 
 @app.route("/api/verify-listing", methods=["POST"])
+@admin_or_tech_api_required
 def api_verify_listing():
     data = request.get_json() or {}
     listing_id = data.get("listing_id")
+
+    if not listing_id:
+        return jsonify({"status": "error", "message": "Listing ID is required."}), 400
 
     listing = Listing.query.get(listing_id)
     if not listing:
@@ -1935,7 +1952,11 @@ def api_verify_listing():
     listing.verified = True
     listing.badge = "Verified Survey"
     db.session.commit()
-    return jsonify({"status": "success", "message": "Listing verified and approved."})
+    return jsonify({
+        "status": "success",
+        "message": "Listing verified and approved.",
+        "listing": listing.to_dict(),
+    })
 
 
 @app.route("/logout")
